@@ -1,3 +1,4 @@
+using System.Drawing;
 using ImGuiNET;
 using Silk.NET.Input;
 using Silk.NET.Maths;
@@ -9,13 +10,19 @@ namespace ColonyCore {
     class ColonyCore {
         
         private IWindow window;
-        private GL? gl;
-        private ImGuiController? controller;
+        
+        private GL gl = null!;
+        private IInputContext input = null!;
+        private ImGuiController controller = null!;
+
+        private IntPtr gameState = IntPtr.Zero;
 
         public ColonyCore() {
             var options = WindowOptions.Default;
-            options.Size = new Vector2D<int>(1600, 900);
             options.Title = "Colony Core 3D";
+
+            options.Size = new Vector2D<int>(1600, 900);
+            options.VSync = true;
 
             window = Window.Create(options);
 
@@ -28,43 +35,27 @@ namespace ColonyCore {
         }
 
         private void OnLoad() {
-            IInputContext input = window.CreateInput();
             gl = window.CreateOpenGL();
+            input = window.CreateInput();
             controller = new ImGuiController(gl, window, input);
 
-            IntPtr playerHandle = NativeLib.player_create("Matieuu", 10d, 10d);
-            Console.WriteLine($"[C#] Otrzymano wskaźnik do gracza: {playerHandle}");
-
-            for (int i = 0; i < 3; i++) {
-                NativeLib.player_move(playerHandle, .5d, .5d);
-                if (i == 1) NativeLib.player_damage(playerHandle, 25);
-
-                unsafe {
-                    Player* player = (Player*)playerHandle;
-                    Console.WriteLine($"[C#] RENDER: Rysuję gracza w ({player->X:F1}, {player->Y:F1}), HP: {player->Health}");
-                }
-            }
-
-            NativeLib.player_destroy(playerHandle);
-            Console.WriteLine("\n[C#] Gracz usunięty");
+            gameState = NativeLib.InitGame();
         }
 
         private void OnUpdate(double deltaTime) {
-            if (controller == null) return;
+            NativeLib.AddTicks(gameState, 1);
 
             controller.Update((float)deltaTime);
         }
 
         private void OnRender(double deltaTime) {
-            if (controller == null || gl == null) return;
-
-            gl.ClearColor(.1f, .1f, .1f, 1f);
+            gl.ClearColor(Color.CornflowerBlue);
             gl.Clear(ClearBufferMask.ColorBufferBit);
 
-            ImGui.Begin("Moje okienko");
-            ImGui.Text("Witaj w C# i Silk.NET");
-            if (ImGui.Button("Kliknij mnie!")) {
-                Console.WriteLine("Przycisk został kliknięty");
+            ImGui.Begin("Ticki");
+            ImGui.Text(NativeLib.GetTicks(gameState).ToString());
+            if (ImGui.Button("Zapisz ticki")) {
+                Console.WriteLine("Ilość ticków: " + NativeLib.GetTicks(gameState));
             }
             ImGui.End();
 
@@ -72,6 +63,7 @@ namespace ColonyCore {
         }
 
         private void OnClose() {
+            NativeLib.DestroyGame(gameState);
             controller?.Dispose();
             gl?.Dispose();
         }

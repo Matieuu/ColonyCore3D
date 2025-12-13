@@ -138,115 +138,73 @@ protected override void OnRender(double delta) {
 
 ---
 
-## 5. Szczegółowy Backlog Zadań (Roadmapa od 0 do MVP)
+## 5. Interakcja: Raycasting i Mouse Picking
+W grze izometrycznej/3D najtrudniejszym elementem UX jest to, że myszka porusza się po płaszczyźnie ekranu (2D), a Ty musisz precyzyjnie wskazać konkretny sześcian (lub ścianę sześcianu) w przestrzeni 3D.
 
-### Milestone 1: The Virtual World (Fundamenty Terenu)
-*Cel: Wyświetlenie statycznego świata voxelowego w rzucie izometrycznym.*
+### 5.1 Matematyka Unprojection (C# Host)
+Host musi zamienić koordynaty kursora myszy (x, y) na promień (Ray) w świecie gry. Jest to doskonałe ćwiczenie z algebry liniowej.
+1.  **Normalizacja (NDC):** Zamień pozycję myszy na zakres [-1, 1].
+2.  **Odwrócenie Macierzy:** Użyj odwrotności macierzy View i Projection: `P_world = Inverse(M_proj * M_view) * P_ndc`.
+3.  **Ray Origin & Direction:** Obliczasz punkt startowy (kamera) i wektor kierunkowy. Te dane (6 floatów) przesyłasz do Rusta przez FFI.
 
-**Core (Rust):**
-- [ ] Zaimplementowanie struktury `VoxelMap` jako płaskiej tablicy 1D (`Vec<u8>`) mapującej koordynaty (x,y,z).
-- [ ] Implementacja logiki dostępu do sąsiadów (`get_neighbor(x,y,z, direction)`).
-- [ ] Eksport surowych danych mapy przez FFI (wskaźnik do bufora kolorów/typów bloków).
+### 5.2 Voxel Traversal (Rust Core)
+Nie używaj prostej kolizji ze wszystkimi obiektami (to za wolne i nieedukacyjne). Ponieważ Twój świat to grid (siatka), użyj algorytmu **DDA (Digital Differential Analyzer)** lub "Fast Voxel Traversal Algorithm" (Amanatides & Woo). To standard w silnikach voxelowych.
 
-**Host (C#):**
-- [ ] Implementacja **Instanced Rendering** dla sześcianów (jeden mesh kostki, tysiące instancji przesłanych w buforze).
-- [ ] Implementacja kamery izometrycznej (Ortograficzna) z obsługą Zoomu (zmiana skali projekcji) i Pan (przesuwanie kamery).
-- [ ] Optymalizacja renderowania: Culling (nie wysyłaj do GPU kostek, które są "powietrzem").
+**API FFI (Rust):**
+```rust
+#[no_mangle]
+pub extern "C" fn sim_raycast(
+    ctx: *mut SimulationContext, 
+    ray_origin_x: f32, ray_origin_y: f32, ray_origin_z: f32,
+    ray_dir_x: f32, ray_dir_y: f32, ray_dir_z: f32
+) -> RaycastResult {
+    // Algorytm "kroczy" po siatce voxeli wzdłuż promienia.
+    // Zwraca koordynaty pierwszego napotkanego nie-pustego bloku
+    // ORAZ normalną ściany (żeby wiedzieć, czy budujemy "na", czy "obok").
+}
+```
 
----
-
-### Milestone 2: The Cursor & Interaction (Interakcja)
-*Cel: Gracz może wskazać konkretny blok w przestrzeni 3D myszką.*
-
-**Host (C#):**
-- [ ] Implementacja **Raycastingu 3D**:
-    - [ ] Przeliczenie pozycji myszy (Screen Space) na promień w świecie (World Space).
-    - [ ] Obliczenie punktu przecięcia promienia z płaszczyzną terenu (Plane $Y=0$).
-- [ ] Implementacja "Ghost Cursor": Wyświetlanie półprzezroczystej kostki w miejscu, gdzie wskazuje mysz (snapping do siatki).
-- [ ] Przesyłanie zdarzeń kliknięcia (LPM/PPM) do Rusta wraz ze współrzędnymi (x,y,z).
-
-**Core (Rust):**
-- [ ] Obsługa komendy "Inspect": Po otrzymaniu koordynatów (x,y,z), zwróć typ bloku i informacje o nim (np. "Dirt Block").
-
----
-
-### Milestone 3: The Colonists (Ruch i AI)
-*Cel: Jednostki poruszają się inteligentnie po mapie.*
-
-**Core (Rust):**
-- [ ] **Struktura Unit:** Zdefiniowanie `struct Pawn` z unikalnym ID i pozycją (float).
-- [ ] **State Machine (`Box<dyn State>`):**
-    - [ ] Stworzenie traita `UnitState`.
-    - [ ] Implementacja stanu `StateIdle`.
-    - [ ] Implementacja stanu `StateMoving`.
-- [ ] **Pathfinding (A*):**
-    - [ ] Implementacja algorytmu A-Star na grafie voxelowym.
-    - [ ] Uwzględnienie kolizji (nie wchodź w ściany).
-- [ ] **Tick Loop:** Interpolacja ruchu jednostki w każdej klatce (przesuwanie `x,y` w stronę kolejnego punktu ścieżki).
-
-**Host (C#):**
-- [ ] Pobieranie listy jednostek (ID, Typ, X, Y, Z) co klatkę.
-- [ ] Renderowanie jednostek (np. jako proste kapsułki lub inne modele) w ich aktualnych pozycjach.
-- [ ] Interpolacja wizualna (Smoothing): Jeśli tick Rusta jest rzadszy niż FPS C#, wygładzaj ruch między klatkami.
+### 5.3 Selekcja i Gizmo
+Host (C#) po otrzymaniu wyniku z Rusta musi narysować "ducha" (ghost object) lub ramkę selekcji (wireframe cube) w miejscu wskazanym przez `RaycastResult`. To daje graczowi natychmiastowy feedback.
 
 ---
 
-### Milestone 4: The Job System (System Pracy - Serce Gry)
-*Cel: Jednostki same szukają zadań (np. zetnij drzewo) i je wykonują.*
+## 6. Architektura Pętli Czasu (Game Loop)
+RimWorld jest deterministyczny. Oznacza to, że przy tych samych danych wejściowych, symulacja zawsze przebiegnie tak samo. Wymaga to **rozdzielenia czasu renderowania od czasu symulacji**. To jedno z najważniejszych zagadnień w inżynierii silników gier.
 
-**Core (Rust):**
-- [ ] **Global Job Queue:** Kolejka dostępnych zadań (np. `JobType::CutTree`).
-- [ ] **Job Definition (`Rc`):**
-    - [ ] Stworzenie definicji zadań (czas trwania, wymagane narzędzie).
-    - [ ] Użycie `Rc` do współdzielenia tych definicji między tysiącami instancji zadań.
-- [ ] **AI Decision:** Logika "Brain" dla osadnika:
-    - [ ] *Czy jestem bezrobotny?* -> Sprawdź kolejkę zadań.
-    - [ ] *Czy zadanie jest osiągalne?* -> Sprawdź Pathfinding.
-    - [ ] *Zarezerwuj zadanie* -> Przypisz do siebie, usuń z kolejki globalnej.
-- [ ] **Action Execution:** Implementacja stanu `StateWorking` (pasek postępu pracy).
+### 6.1 Fixed Time Step (Akumulator)
+Renderowanie (C#) może działać w 144 FPS lub 30 FPS, ale fizyka/logika kolonii (Rust) musi działać zawsze stałym tempie, np. 60 Tickach na sekundę (TPS).
 
-**Host (C#):**
-- [ ] UI: Wyświetlanie paska postępu nad głową jednostki, gdy jest w stanie `StateWorking`.
-- [ ] UI: Menu kontekstowe (Prawy przycisk na drzewo -> "Mark for harvest").
+**Algorytm w C# (Główna pętla):**
+```csharp
+double accumulator = 0.0;
+double dt = 1.0 / 60.0; // Stały krok symulacji (16.6ms)
 
----
+void OnUpdate(double deltaRender) {
+    accumulator += deltaRender;
 
-### Milestone 5: Mining & Building (Modyfikacja Świata)
-*Cel: Gracz i jednostki mogą zmieniać strukturę mapy.*
+    // Pętla "doganiająca" symulację (Decoupled sim speed from frame rate)
+    // Jeśli gra zwolni (lag), ta pętla wykona się kilka razy,
+    // aby logika gry "dogoniła" czas rzeczywisty.
+    while (accumulator >= dt) {
+        NativeLib.sim_tick(_simHandle, dt); // Rust liczy logiczny krok
+        accumulator -= dt;
+    }
 
-**Core (Rust):**
-- [ ] **Modyfikacja VoxelMap:** Funkcja zmieniająca typ bloku w (x,y,z) np. z `Stone` na `Air` (kopanie) lub z `Air` na `Wall` (budowanie).
-- [ ] **Dirty Flag:** Oznaczanie chunka mapy jako "zmieniony", aby C# wiedział, że musi odświeżyć grafikę.
-- [ ] **Pathfinding Recalculation:** Jeśli postawiono ścianę, jednostki muszą przeliczyć ścieżki.
+    // Renderowanie z interpolacją
+    // alpha mówi nam, w którym momencie "pomiędzy" tickami fizyki jesteśmy (0.0 - 1.0)
+    double alpha = accumulator / dt; 
+    RenderWorld(alpha); 
+}
+```
 
-**Host (C#):**
-- [ ] Obsługa "Dirty Chunk": Jeśli Rust zgłosi zmianę, przebuduj bufory instancji dla danego fragmentu mapy.
-- [ ] System "Designations": Wizualne oznaczanie bloków do wykopania (np. czerwona nakładka na blokach).
+### 6.2 Interpolacja Stanu (Render State)
+Aby ruch jednostek był płynny przy Fixed Time Step (szczególnie przy monitorach o wysokim odświeżaniu), nie możesz po prostu rysować `Position`.
+Rust powinien zwracać dwie pozycje dla każdego obiektu:
+1.  `PreviousPosition` (z poprzedniego ticka)
+2.  `CurrentPosition` (z obecnego ticka)
 
----
+Shader w C# (lub logika przed wysłaniem do GPU) wylicza pozycję wizualną:
+`Pos_visual = Lerp(Pos_prev, Pos_current, alpha)`
 
-### Milestone 6: Needs & Survival (Zarządzanie Zasobami)
-*Cel: Jednostki muszą jeść i spać.*
-
-**Core (Rust):**
-- [ ] **Need System:** Struktura trzymająca paski potrzeb (Głód, Energia, Komfort).
-- [ ] **Resource Inventory:** Globalny magazyn surowców (Drewno, Jedzenie) zabezpieczony przez `Arc<Mutex<Inventory>>`.
-- [ ] **AI Override:** Jeśli `Hunger < 10%`, przerwij pracę i szukaj jedzenia.
-- [ ] **Item Hauling:** Zadanie przenoszenia surowców z ziemi do magazynu.
-
-**Host (C#):**
-- [ ] GUI: Panel boczny wyświetlający statystyki wybranego osadnika (Wykresy głodu/energii).
-- [ ] GUI: Wyświetlanie surowców leżących na ziemi (małe modele 'lootu').
-
----
-
-### Milestone 7: Optimization (Zaawansowane)
-*Cel: Obsługa 100x100x20 świata i 100 jednostek w 60 FPS.*
-
-**Core (Rust):**
-- [ ] **Multithreading:** Przeniesienie Pathfindingu do `ThreadPool` (Rust: `rayon` lub `std::thread`).
-- [ ] **Spatial Partitioning:** Użycie Octree lub Grid Partitioning do szybszego wyszukiwania sąsiadów/kolizji.
-
-**Host (C#):**
-- [ ] **Greedy Meshing:** Łączenie sąsiadujących ścian tego samego typu w jeden duży prostokąt, aby zmniejszyć liczbę wierzchołków.
-- [ ] **Texture Atlases:** Użycie jednej dużej tekstury dla wszystkich bloków.
+Bez tego mechanizmu ruch kamery i jednostek będzie szarpał (jitter), nawet przy wysokim FPS.

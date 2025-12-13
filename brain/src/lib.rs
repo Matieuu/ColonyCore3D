@@ -17,4 +17,4 @@
 )]
 #![cfg_attr(not(debug_assertions), deny(debug_assertions))]
 
-pub mod player;
+pub mod game_state;
