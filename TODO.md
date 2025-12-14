@@ -39,15 +39,15 @@
 - [x] **Sanity Check:** Czy po odpaleniu masz kolorowe okno, które można zamknąć krzyżykiem?
 
 ### M1.2: Shadery (Kopiuj-Wklej)
-- [ ] Stwórz plik `shader.vert` (prosty GLSL, przekazuje pozycję).
-- [ ] Stwórz plik `shader.frag` (prosty GLSL, zwraca stały kolor, np. biały).
-- [ ] Napisz w C# klasę `Shader` (ładowanie tekstu z pliku -> kompilacja -> linkowanie programu). To jest nudne, możesz skopiować gotowca z tutoriali Silk.NET.
+- [x] Stwórz plik `shader.vert` (prosty GLSL, przekazuje pozycję).
+- [x] Stwórz plik `shader.frag` (prosty GLSL, zwraca stały kolor, np. biały).
+- [x] Napisz w C# klasę `Shader` (ładowanie tekstu z pliku -> kompilacja -> linkowanie programu). To jest nudne, możesz skopiować gotowca z tutoriali Silk.NET.
 
 ### M1.3: Trójkąt
-- [ ] Zdefiniuj tablicę `float[] vertices` dla jednego trójkąta.
-- [ ] Utwórz VAO (Vertex Array Object) i VBO (Vertex Buffer Object).
-- [ ] W pętli `OnRender`: `shader.Use()`, `vao.Bind()`, `gl.DrawArrays()`.
-- [ ] **Sanity Check:** Widzisz biały trójkąt na niebieskim tle? Gratulacje, masz silnik graficzny.
+- [x] Zdefiniuj tablicę `float[] vertices` dla jednego trójkąta.
+- [x] Utwórz VAO (Vertex Array Object) i VBO (Vertex Buffer Object).
+- [x] W pętli `OnRender`: `shader.Use()`, `vao.Bind()`, `gl.DrawArrays()`.
+- [x] **Sanity Check:** Widzisz biały trójkąt na niebieskim tle? Gratulacje, masz silnik graficzny.
 
 ### M1.4: ImGui (Must Have)
 - [x] Dodaj `Silk.NET.OpenGL.Extensions.ImGui`.

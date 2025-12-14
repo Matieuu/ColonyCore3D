@@ -1,71 +1,123 @@
 using System.Drawing;
-using ImGuiNET;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Silk.NET.OpenGL.Extensions.ImGui;
 using Silk.NET.Windowing;
 
-namespace ColonyCore {
-    class ColonyCore {
-        
-        private IWindow window;
-        
-        private GL gl = null!;
-        private IInputContext input = null!;
-        private ImGuiController controller = null!;
+namespace ColonyCore;
 
-        private IntPtr gameState = IntPtr.Zero;
+class ColonyCore {
 
-        public ColonyCore() {
-            var options = WindowOptions.Default;
-            options.Title = "Colony Core 3D";
+    private readonly IWindow _window;
 
-            options.Size = new Vector2D<int>(1600, 900);
-            options.VSync = true;
+    private GL _gl = null!;
+    private IInputContext _input = null!;
+    private ImGuiController _controller = null!;
+    private Shader _shader = null!;
 
-            window = Window.Create(options);
+    private IntPtr _gameState = IntPtr.Zero;
 
-            window.Load += OnLoad;
-            window.Update += OnUpdate;
-            window.Render += OnRender;
-            window.Closing += OnClose;
+    private BufferObject<float> _vbo = null!;
+    private VertexArrayObject<float, uint> _vao = null!;
 
-            window.Run();
-        }
+    public ColonyCore() {
+        var options = WindowOptions.Default;
+        options.Title = "Colony Core 3D";
 
-        private void OnLoad() {
-            gl = window.CreateOpenGL();
-            input = window.CreateInput();
-            controller = new ImGuiController(gl, window, input);
+        options.Size = new Vector2D<int>(1600, 900);
+        options.VSync = true;
 
-            gameState = NativeLib.InitGame();
-        }
+        _window = Window.Create(options);
 
-        private void OnUpdate(double deltaTime) {
-            NativeLib.AddTicks(gameState, 1);
+        _window.Load += OnLoad;
+        _window.Update += OnUpdate;
+        _window.Render += OnRender;
+        _window.Closing += OnClose;
 
-            controller.Update((float)deltaTime);
-        }
+        _window.Run();
+    }
 
-        private void OnRender(double deltaTime) {
-            gl.ClearColor(Color.CornflowerBlue);
-            gl.Clear(ClearBufferMask.ColorBufferBit);
+    private void OnLoad() {
+        _gl = _window.CreateOpenGL();
+        _input = _window.CreateInput();
+        _controller = new ImGuiController(_gl, _window, _input);
+        _shader = new Shader(_gl, "shader.vert", "shader.frag");
 
-            ImGui.Begin("Ticki");
-            ImGui.Text(NativeLib.GetTicks(gameState).ToString());
-            if (ImGui.Button("Zapisz ticki")) {
-                Console.WriteLine("Ilość ticków: " + NativeLib.GetTicks(gameState));
-            }
-            ImGui.End();
+        _gameState = NativeLib.InitGame();
+        _gl.Enable(EnableCap.DepthTest);
+        // _gl.Disable(EnableCap.CullFace);
 
-            controller.Render();
-        }
+        float[] vertices = {
+            // FORMAT: X, Y, Z,    R, G, B
+    
+            // Ściana 1 (Przód - Czerwona)
+            0.0f,  0.5f,  0.0f,   1.0f, 0.0f, 0.0f, // Czubek
+            -0.5f, -0.5f,  0.5f,   1.0f, 0.0f, 0.0f, // Lewy przód
+            0.5f, -0.5f,  0.5f,   1.0f, 0.0f, 0.0f, // Prawy przód
 
-        private void OnClose() {
-            NativeLib.DestroyGame(gameState);
-            controller?.Dispose();
-            gl?.Dispose();
-        }
+            // Ściana 2 (Prawa - Zielona)
+            0.0f,  0.5f,  0.0f,   0.0f, 1.0f, 0.0f, // Czubek
+            0.5f, -0.5f,  0.5f,   0.0f, 1.0f, 0.0f, // Prawy przód
+            0.0f, -0.5f, -0.5f,   0.0f, 1.0f, 0.0f, // Tył
+
+            // Ściana 3 (Lewa - Niebieska)
+            0.0f,  0.5f,  0.0f,   0.0f, 0.0f, 1.0f, // Czubek
+            0.0f, -0.5f, -0.5f,   0.0f, 0.0f, 1.0f, // Tył
+            -0.5f, -0.5f,  0.5f,   0.0f, 0.0f, 1.0f, // Lewy przód
+
+            // Ściana 4 (Podstawa - Szara)
+            -0.5f, -0.5f,  0.5f,   0.5f, 0.5f, 0.5f,
+            0.0f, -0.5f, -0.5f,   0.5f, 0.5f, 0.5f,
+            0.5f, -0.5f,  0.5f,   0.5f, 0.5f, 0.5f
+        };
+
+        _vbo = new BufferObject<float>(_gl, vertices, BufferTargetARB.ArrayBuffer);
+        _vao = new VertexArrayObject<float, uint>(_gl, _vbo);
+
+        _vao.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, 6, 0);
+        _vao.VertexAttributePointer(1, 3, VertexAttribPointerType.Float, 6, 3);
+    }
+
+    private void OnUpdate(double deltaTime) {
+        NativeLib.AddTicks(_gameState, 1);
+
+        _controller.Update((float)deltaTime);
+    }
+
+    private void OnRender(double deltaTime) {
+        _gl.ClearColor(Color.CornflowerBlue);
+        _gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+        _shader.Use();
+
+        float time = (float)DateTime.Now.TimeOfDay.TotalSeconds;
+        var model = Matrix4X4.CreateRotationY<float>(time * 2f) * Matrix4X4.CreateRotationX<float>(time * .5f);
+        var view = Matrix4X4.CreateLookAt<float>(new Vector3D<float>(0, 1, 3), Vector3D<float>.Zero, Vector3D<float>.UnitY);
+        var projection = Matrix4X4.CreatePerspectiveFieldOfView<float>(
+            (float)(60f * Math.PI / 180f),
+            (float)_window.Size.X / (float)_window.Size.Y,
+            .1f,
+            100f
+        );
+
+        _shader.SetUniform("uModel", model);
+        _shader.SetUniform("uView", view);
+        _shader.SetUniform("uProjection", projection);
+
+        _vao.Bind();
+        _gl.DrawArrays(PrimitiveType.Triangles, 0, 12);
+
+        _controller.Render();
+    }
+
+    private void OnClose() {
+        _vbo.Dispose();
+        _vao.Dispose();
+
+        NativeLib.DestroyGame(_gameState);
+        _shader.Dispose();
+        _controller?.Dispose();
+        _gl?.Dispose();
     }
 }
