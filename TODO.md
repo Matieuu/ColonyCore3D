@@ -62,9 +62,9 @@
 
 ### M2.1: Model Sześcianu
 - [ ] Zmień dane wierzchołków z trójkąta na sześcian (Cube).
-- [ ] Użyj `glDrawElements` (EBO - Element Buffer Object), żeby nie powtarzać wierzchołków.
-- [ ] Dodaj macierze transformacji w C# (`Matrix4x4.CreatePerspective...`, `CreateLookAt...`).
-- [ ] Prześlij macierze do shadera jako `Uniform`.
+- [x] Użyj `glDrawElements` (EBO - Element Buffer Object), żeby nie powtarzać wierzchołków.
+- [x] Dodaj macierze transformacji w C# (`Matrix4x4.CreatePerspective...`, `CreateLookAt...`).
+- [x] Prześlij macierze do shadera jako `Uniform`.
 - [ ] **Sanity Check:** Widzisz obracający się sześcian 3D?
 
 ### M2.2: Płaski Świat w Rust

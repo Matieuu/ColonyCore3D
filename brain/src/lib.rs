@@ -1,9 +1,5 @@
 #![warn(clippy::all, clippy::pedantic)]
-#![forbid(
-    clippy::unwrap_used,
-    clippy::ok_expect,
-    clippy::err_expect
-)]
+#![forbid(clippy::unwrap_used, clippy::ok_expect, clippy::err_expect)]
 #![deny(
     unused_must_use,
     unreachable_patterns,
