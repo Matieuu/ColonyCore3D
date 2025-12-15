@@ -61,11 +61,11 @@
 *Cel: Zamiast trójkąta, rysujemy świat gry z Rusta.*
 
 ### M2.1: Model Sześcianu
-- [ ] Zmień dane wierzchołków z trójkąta na sześcian (Cube).
+- [x] Zmień dane wierzchołków z trójkąta na sześcian (Cube).
 - [x] Użyj `glDrawElements` (EBO - Element Buffer Object), żeby nie powtarzać wierzchołków.
 - [x] Dodaj macierze transformacji w C# (`Matrix4x4.CreatePerspective...`, `CreateLookAt...`).
 - [x] Prześlij macierze do shadera jako `Uniform`.
-- [ ] **Sanity Check:** Widzisz obracający się sześcian 3D?
+- [x] **Sanity Check:** Widzisz obracający się sześcian 3D?
 
 ### M2.2: Płaski Świat w Rust
 - [ ] W Rust: Stwórz `Vec<BlockType>` o rozmiarze np. 16x16. Wypełnij losowymi danymi.

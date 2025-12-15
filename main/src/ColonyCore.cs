@@ -51,7 +51,7 @@ class ColonyCore {
 
         // 1. Wierzchołki: Każdy punkt definiujemy TYLKO RAZ
         // X, Y, Z,    R, G, B
-        float[] vertices = {
+        float[] triangleVertices = {
             0.0f,  0.5f,  0.0f,   1.0f, 0.0f, 0.0f, // 0: Czubek (Czerwony)
            -0.5f, -0.5f,  0.5f,   0.0f, 1.0f, 0.0f, // 1: Lewy Przód (Zielony)
             0.5f, -0.5f,  0.5f,   0.0f, 0.0f, 1.0f, // 2: Prawy Przód (Niebieski)
@@ -60,15 +60,42 @@ class ColonyCore {
 
         // 2. Indeksy: Tylko liczby całkowite (uint)
         // Mówimy: "Zrób trójkąt z wierzchołka 0, 1 i 2"
-        uint[] indices = {
+        uint[] triangleIndices = {
             0, 1, 2, // Przód
             0, 2, 3, // Prawa
             0, 3, 1, // Lewa
             1, 2, 3  // Podstawa
         };
 
-        _vbo = new BufferObject<float>(_gl, vertices, BufferTargetARB.ArrayBuffer);
-        _ebo = new BufferObject<uint>(_gl, indices, BufferTargetARB.ElementArrayBuffer);
+        // Wierzchołki kostki: X, Y, Z,  R, G, B
+        float[] cubeVertices = {
+            -0.5f, -0.5f, -0.5f,    0.0f, 0.0f, 0.0f,   // 0: left down front
+             0.5f, -0.5f, -0.5f,    1.0f, 0.0f, 1.0f,   // 1: right down front
+            -0.5f,  0.5f, -0.5f,    0.0f, 1.0f, 0.0f,   // 2: left up front
+             0.5f,  0.5f, -0.5f,    1.0f, 1.0f, 1.0f,   // 3: right up front
+            -0.5f, -0.5f,  0.5f,    0.0f, 0.0f, 1.0f,   // 4: left down back
+             0.5f, -0.5f,  0.5f,    1.0f, 0.0f, 1.0f,   // 5: right down back
+            -0.5f,  0.5f,  0.5f,    0.0f, 1.0f, 1.0f,   // 6: left up back
+             0.5f,  0.5f,  0.5f,    1.0f, 1.0f, 1.0f,   // 7: right up back
+        };
+
+        uint[] cubeIndices = {
+            0, 1, 4,
+            1, 4, 5,
+            0, 1, 2,
+            1, 2, 3,
+            1, 3, 5,
+            3, 5, 7,
+            0, 2, 4,
+            2, 4, 6,
+            4, 5, 6,
+            5, 6, 7,
+            2, 3, 6,
+            3, 6, 7
+        };
+
+        _vbo = new BufferObject<float>(_gl, cubeVertices, BufferTargetARB.ArrayBuffer);
+        _ebo = new BufferObject<uint>(_gl, cubeIndices, BufferTargetARB.ElementArrayBuffer);
         _vao = new VertexArrayObject<float, uint>(_gl, _vbo, _ebo);
 
         _vao.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, 6, 0);
@@ -103,7 +130,7 @@ class ColonyCore {
 
         _vao.Bind();
         unsafe {
-            _gl.DrawElements(PrimitiveType.Triangles, 12, DrawElementsType.UnsignedInt, null);
+            _gl.DrawElements(PrimitiveType.Triangles, 36, DrawElementsType.UnsignedInt, null);
         }
 
         _controller.Render();
