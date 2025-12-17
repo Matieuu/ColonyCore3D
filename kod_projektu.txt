@@ -1,0 +1,770 @@
+
+
+========================================
+PLIK: ./main/shader.frag
+========================================
+#version 330 core
+out vec4 FragColor;
+
+in vec3 vColor;
+
+void main() {
+    FragColor = vec4(vColor, 1.0);
+}
+
+========================================
+PLIK: ./main/Program.cs
+========================================
+namespace ColonyCore {
+    class Program {
+        static void Main(string[] args) {
+            var _ = new ColonyCore();
+        }
+    }
+}
+
+========================================
+PLIK: ./main/src/Shader.cs
+========================================
+using Silk.NET.OpenGL;
+using Silk.NET.Maths;
+
+namespace ColonyCore;
+
+public class Shader : IDisposable {
+
+    private Dictionary<string, int> _uniformLocations = new Dictionary<string, int>();
+
+    private uint _handle;
+    private GL _gl;
+
+    public Shader(GL gl, string vertexPath, string fragmentPath) {
+        _gl = gl;
+
+        uint vertex = LoadShader(ShaderType.VertexShader, vertexPath);
+        uint fragment = LoadShader(ShaderType.FragmentShader, fragmentPath);
+        _handle = _gl.CreateProgram();
+        _gl.AttachShader(_handle, vertex);
+        _gl.AttachShader(_handle, fragment);
+        _gl.LinkProgram(_handle);
+        _gl.GetProgram(_handle, GLEnum.LinkStatus, out var status);
+        if (status == 0) {
+            throw new Exception($"Program failed to link with error: {_gl.GetProgramInfoLog(_handle)}");
+        }
+        _gl.DetachShader(_handle, vertex);
+        _gl.DetachShader(_handle, fragment);
+        _gl.DeleteShader(vertex);
+        _gl.DeleteShader(fragment);
+    }
+
+    public void Use() {
+        _gl.UseProgram(_handle);
+    }
+
+    private int GetUniformLocation(string name) {
+        if (_uniformLocations.TryGetValue(name, out int location)) {
+            return location;
+        }
+
+        location = _gl.GetUniformLocation(_handle, name);
+        if (location == -1) {
+            Console.WriteLine($"[Warning] Uniform {name} does not exist or is not in use");
+        }
+
+        _uniformLocations.Add(name, location);
+        return location;
+    }
+
+    public void SetUniform(string name, int value) {
+        int location = GetUniformLocation(name);
+        if (location == -1) {
+            throw new Exception($"{name} uniform not found on shader.");
+        }
+        _gl.Uniform1(location, value);
+    }
+
+    public void SetUniform(string name, float value) {
+        int location = GetUniformLocation(name);
+        if (location == -1) {
+            throw new Exception($"{name} uniform not found on shader.");
+        }
+        _gl.Uniform1(location, value);
+    }
+
+    public void SetUniform(string name, Vector2D<float> value) {
+        int location = GetUniformLocation(name);
+        if (location == -1) {
+            throw new Exception($"{name} uniform not found on shader.");
+        }
+        _gl.Uniform2(location, value.X, value.Y);
+    }
+
+    public unsafe void SetUniform(string name, Vector3D<float> value) {
+        int location = GetUniformLocation(name);
+        if (location == -1) {
+            throw new Exception($"{name} uniform not found on shader.");
+        }
+        _gl.Uniform3(location, value.X, value.Y, value.Z);
+    }
+
+    public unsafe void SetUniform(string name, Matrix4X4<float> value) {
+        int location = GetUniformLocation(name);
+        if (location == -1) {
+            throw new Exception($"{name} uniform not found on shader.");
+        }
+        _gl.UniformMatrix4(location, 1, false, (float*)&value);
+    }
+
+    public void Dispose() {
+        _gl.DeleteProgram(_handle);
+    }
+
+    private uint LoadShader(ShaderType type, string path) {
+        string src = File.ReadAllText(path);
+        uint handle = _gl.CreateShader(type);
+        _gl.ShaderSource(handle, src);
+        _gl.CompileShader(handle);
+        string infoLog = _gl.GetShaderInfoLog(handle);
+        if (!string.IsNullOrWhiteSpace(infoLog)) {
+            throw new Exception($"Error compiling shader of type {type}, failed with error {infoLog}");
+        }
+
+        return handle;
+    }
+
+}
+
+
+========================================
+PLIK: ./main/src/ColonyCore.cs
+========================================
+using System.Drawing;
+using Silk.NET.Input;
+using Silk.NET.Maths;
+using Silk.NET.OpenGL;
+using Silk.NET.OpenGL.Extensions.ImGui;
+using Silk.NET.Windowing;
+
+namespace ColonyCore;
+
+class ColonyCore {
+
+    private readonly IWindow _window;
+
+    private GL _gl = null!;
+    private IInputContext _input = null!;
+    private ImGuiController _controller = null!;
+    private Shader _shader = null!;
+
+    // private IntPtr _gameState = IntPtr.Zero;
+
+    private BufferObject<float> _vbo = null!;
+    private BufferObject<uint> _ebo = null!;
+    private VertexArrayObject<float, uint> _vao = null!;
+
+    public ColonyCore() {
+        var options = WindowOptions.Default;
+        options.Title = "Colony Core 3D";
+
+        options.Size = new Vector2D<int>(1600, 900);
+        options.VSync = true;
+
+        _window = Window.Create(options);
+
+        _window.Load += OnLoad;
+        _window.Update += OnUpdate;
+        _window.Render += OnRender;
+        _window.Closing += OnClose;
+
+        _window.Run();
+    }
+
+    private void OnLoad() {
+        _gl = _window.CreateOpenGL();
+        _input = _window.CreateInput();
+        _controller = new ImGuiController(_gl, _window, _input);
+        _shader = new Shader(_gl, "shader.vert", "shader.frag");
+
+        // _gameState = NativeLib.InitGame();
+        _gl.Enable(EnableCap.DepthTest);
+        // _gl.Disable(EnableCap.CullFace);
+
+        // 1. Wierzchołki: Każdy punkt definiujemy TYLKO RAZ
+        // X, Y, Z,    R, G, B
+        float[] triangleVertices = {
+            0.0f,  0.5f,  0.0f,   1.0f, 0.0f, 0.0f, // 0: Czubek (Czerwony)
+           -0.5f, -0.5f,  0.5f,   0.0f, 1.0f, 0.0f, // 1: Lewy Przód (Zielony)
+            0.5f, -0.5f,  0.5f,   0.0f, 0.0f, 1.0f, // 2: Prawy Przód (Niebieski)
+            0.0f, -0.5f, -0.5f,   1.0f, 1.0f, 0.0f  // 3: Tył (Żółty)
+        };
+
+        // 2. Indeksy: Tylko liczby całkowite (uint)
+        // Mówimy: "Zrób trójkąt z wierzchołka 0, 1 i 2"
+        uint[] triangleIndices = {
+            0, 1, 2, // Przód
+            0, 2, 3, // Prawa
+            0, 3, 1, // Lewa
+            1, 2, 3  // Podstawa
+        };
+
+        // Wierzchołki kostki: X, Y, Z,  R, G, B
+        float[] cubeVertices = {
+            -0.5f, -0.5f, -0.5f,    0.0f, 0.0f, 0.0f,   // 0: left down front
+             0.5f, -0.5f, -0.5f,    1.0f, 0.0f, 1.0f,   // 1: right down front
+            -0.5f,  0.5f, -0.5f,    0.0f, 1.0f, 0.0f,   // 2: left up front
+             0.5f,  0.5f, -0.5f,    1.0f, 1.0f, 1.0f,   // 3: right up front
+            -0.5f, -0.5f,  0.5f,    0.0f, 0.0f, 1.0f,   // 4: left down back
+             0.5f, -0.5f,  0.5f,    1.0f, 0.0f, 1.0f,   // 5: right down back
+            -0.5f,  0.5f,  0.5f,    0.0f, 1.0f, 1.0f,   // 6: left up back
+             0.5f,  0.5f,  0.5f,    1.0f, 1.0f, 1.0f,   // 7: right up back
+        };
+
+        uint[] cubeIndices = {
+            0, 1, 4,
+            1, 4, 5,
+            0, 1, 2,
+            1, 2, 3,
+            1, 3, 5,
+            3, 5, 7,
+            0, 2, 4,
+            2, 4, 6,
+            4, 5, 6,
+            5, 6, 7,
+            2, 3, 6,
+            3, 6, 7
+        };
+
+        _vbo = new BufferObject<float>(_gl, cubeVertices, BufferTargetARB.ArrayBuffer);
+        _ebo = new BufferObject<uint>(_gl, cubeIndices, BufferTargetARB.ElementArrayBuffer);
+        _vao = new VertexArrayObject<float, uint>(_gl, _vbo, _ebo);
+
+        _vao.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, 6, 0);
+        _vao.VertexAttributePointer(1, 3, VertexAttribPointerType.Float, 6, 3);
+    }
+
+    private void OnUpdate(double deltaTime) {
+        // NativeLib.AddTicks(_gameState, 1);
+
+        _controller.Update((float)deltaTime);
+    }
+
+    private void OnRender(double deltaTime) {
+        _gl.ClearColor(Color.CornflowerBlue);
+        _gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+        _shader.Use();
+
+        float time = (float)DateTime.Now.TimeOfDay.TotalSeconds;
+        var model = Matrix4X4.CreateRotationY<float>(time * 2f) * Matrix4X4.CreateRotationX<float>(time * .5f);
+        var view = Matrix4X4.CreateLookAt<float>(new Vector3D<float>(0, 1, 3), Vector3D<float>.Zero, Vector3D<float>.UnitY);
+        var projection = Matrix4X4.CreatePerspectiveFieldOfView<float>(
+            (float)(60f * Math.PI / 180f),
+            (float)_window.Size.X / (float)_window.Size.Y,
+            .1f,
+            100f
+        );
+
+        _shader.SetUniform("uModel", model);
+        _shader.SetUniform("uView", view);
+        _shader.SetUniform("uProjection", projection);
+
+        _vao.Bind();
+        unsafe {
+            _gl.DrawElements(PrimitiveType.Triangles, 36, DrawElementsType.UnsignedInt, null);
+        }
+
+        _controller.Render();
+    }
+
+    private void OnClose() {
+        _vbo.Dispose();
+        _vao.Dispose();
+
+        // NativeLib.DestroyGame(_gameState);
+        _shader.Dispose();
+        _controller?.Dispose();
+        _gl?.Dispose();
+    }
+}
+
+
+========================================
+PLIK: ./main/src/NativeLib.cs
+========================================
+using System.Reflection;
+using System.Runtime.InteropServices;
+
+namespace ColonyCore;
+
+public static partial class NativeLib {
+
+    private const string LibName = "brain";
+
+    static NativeLib() {
+        NativeLibrary.SetDllImportResolver(Assembly.GetExecutingAssembly(), DllImportResolver);
+    }
+
+    private static IntPtr DllImportResolver(string libraryName, Assembly assembly, DllImportSearchPath? searchPath) {
+        if (libraryName == LibName) {
+            if (OperatingSystem.IsWindows()) {
+                return NativeLibrary.Load(LibName + ".dll", assembly, searchPath);
+            }
+            else if (OperatingSystem.IsLinux()) {
+                return NativeLibrary.Load("lib" + LibName + ".so", assembly, searchPath);
+            }
+            else if (OperatingSystem.IsMacOS()) {
+                return NativeLibrary.Load("lib" + LibName + ".dylib", assembly, searchPath);
+            }
+        }
+
+        return IntPtr.Zero;
+    }
+
+    [LibraryImport(LibName, EntryPoint = "sim_init")]
+    public static partial IntPtr Sim_Init(uint x, uint y, uint z);
+
+    [LibraryImport(LibName, EntryPoint = "sim_destroy")]
+    public static partial void Sim_Destroy(IntPtr ptr);
+
+    [LibraryImport(LibName, EntryPoint = "sim_get_map_ptr")]
+    public static partial IntPtr Sim_GetMapPtr(IntPtr ptr);
+
+    [LibraryImport(LibName, EntryPoint = "sim_get_map_len")]
+    public static partial long Sim_GetMapLen(IntPtr ptr);
+
+    [LibraryImport(LibName, EntryPoint = "sim_entity_get_float")]
+    public static partial byte Sim_TryGetEntityFloat(IntPtr ptr, uint x, uint y, uint z, ushort propId, out float out_value);
+
+    [LibraryImport(LibName, EntryPoint = "sim_entity_get_int")]
+    public static partial byte Sim_TryGetEntityInt(IntPtr ptr, uint x, uint y, uint z, ushort propId, out float out_value);
+
+    [LibraryImport(LibName, EntryPoint = "sim_tick")]
+    public static partial void Sim_Tick(IntPtr ptr);
+
+}
+
+
+========================================
+PLIK: ./main/src/Constants.cs
+========================================
+public static class Constants {
+
+    public const ushort PROP_FUEL_LEVEL = 1;
+    public const ushort PROP_MAX_FUEL = 2;
+
+    public const ushort PROP_IS_ACTIVE = 100;
+    public const ushort PROP_ITEM_COUNT = 101;
+
+}
+
+
+========================================
+PLIK: ./main/src/VertexArrayObject.cs
+========================================
+using Silk.NET.OpenGL;
+
+namespace ColonyCore;
+
+public class VertexArrayObject<TType, TIndex> : IDisposable
+    where TType : unmanaged
+    where TIndex : unmanaged {
+
+    private uint _handle;
+    private GL _gl;
+
+    public VertexArrayObject(GL gl, BufferObject<TType> vbo, BufferObject<TIndex> ebo = null!) {
+        _gl = gl;
+        _handle = _gl.GenVertexArray();
+        Bind();
+
+        // VAO musi wiedzieć, z jakiego VBO ma czytać przepis
+        vbo.Bind();
+        ebo?.Bind();
+    }
+
+    public unsafe void VertexAttributePointer(uint index, int count, VertexAttribPointerType type, uint stride, int offset) {
+        // Tu jest ta cała matematyka sizeof, której nie chcesz widzieć w Main
+        _gl.VertexAttribPointer(index, count, type, false, stride * (uint)sizeof(TType), (void*)(offset * sizeof(TType)));
+        _gl.EnableVertexAttribArray(index);
+    }
+
+    public void Bind() {
+        _gl.BindVertexArray(_handle);
+    }
+
+    public void Dispose() {
+        _gl.DeleteVertexArray(_handle);
+    }
+
+}
+
+========================================
+PLIK: ./main/src/BufferObject.cs
+========================================
+using Silk.NET.OpenGL;
+
+namespace ColonyCore;
+
+// T musi być "unmanaged" (typem prostym: float, int, struct), żeby wskaźniki działały
+public class BufferObject<T> : IDisposable where T : unmanaged {
+
+    private uint _handle;
+    private BufferTargetARB _bufferType;
+    private GL _gl;
+
+    public unsafe BufferObject(
+        GL gl,
+        Span<T> data,
+        BufferTargetARB bufferType,
+        BufferUsageARB bufferUsage = BufferUsageARB.StaticDraw
+    ) {
+        _gl = gl;
+        _bufferType = bufferType;
+
+        _handle = _gl.GenBuffer();
+        Bind();
+
+        // Magia wskaźników zamknięta w środku
+        fixed (void* d = data) {
+            _gl.BufferData(bufferType, (nuint)(data.Length * sizeof(T)), d, bufferUsage);
+        }
+    }
+
+    public void Bind() {
+        _gl.BindBuffer(_bufferType, _handle);
+    }
+
+    public void Dispose() {
+        _gl.DeleteBuffer(_handle);
+    }
+
+}
+
+========================================
+PLIK: ./main/shader.vert
+========================================
+#version 330 core
+
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aColor;
+
+uniform mat4 uModel;
+uniform mat4 uView;
+uniform mat4 uProjection;
+
+out vec3 vColor;
+
+void main() {
+    gl_Position = uProjection * uView * uModel * vec4(aPos, 1.0);
+    vColor = aColor;
+}
+
+========================================
+PLIK: ./main/main.csproj
+========================================
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Silk.NET.Input" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Windowing" Version="2.22.0" />
+    <PackageReference Include="StbImageSharp" Version="2.30.15" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="shader.vert">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="shader.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+</ItemGroup>
+
+</Project>
+
+
+========================================
+PLIK: ./brain/Cargo.toml
+========================================
+[package]
+name = "brain"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+
+
+========================================
+PLIK: ./brain/src/block_entity.rs
+========================================
+pub trait BlockEntity {
+    #[rustfmt::skip]    fn get_float(&self, id: u16) -> Option<f32> { None }
+    #[rustfmt::skip]    fn get_int(&self, id: u16) -> Option<i32> { None }
+
+    fn set_float(&mut self, id: u16, value: f32) {}
+    fn set_int(&mut self, id: u16, value: i32) {}
+
+    fn tick(&mut self) {}
+}
+
+
+========================================
+PLIK: ./brain/src/utils.rs
+========================================
+pub fn is_int_boolean(value: i32) -> bool {
+    value == 0 || value == 1
+}
+
+pub fn is_int_positive(value: i32) -> bool {
+    value >= 0
+}
+
+
+========================================
+PLIK: ./brain/src/lib.rs
+========================================
+#![warn(clippy::all, clippy::pedantic)]
+#![forbid(clippy::unwrap_used, clippy::ok_expect, clippy::err_expect)]
+#![deny(
+    unused_must_use,
+    unreachable_patterns,
+    unused_variables,
+    rust_2018_idioms
+)]
+#![allow(clippy::module_name_repetitions)]
+#![cfg_attr(
+    debug_assertions,
+    allow(dead_code, unused_imports, unused_mut, unused_variables)
+)]
+#![cfg_attr(not(debug_assertions), deny(debug_assertions))]
+
+use std::collections::HashMap;
+
+use crate::world::World;
+
+pub mod block_entity;
+pub mod constants;
+pub mod machines;
+pub mod utils;
+pub mod world;
+
+#[unsafe(no_mangle)]
+pub extern "C" fn sim_init(x: u32, y: u32, z: u32) -> *mut World {
+    let world_size = x * y * z;
+
+    let world = Box::new(World {
+        width: x,
+        height: y,
+        depth: z,
+        map: vec![0; world_size as usize],
+        entities: HashMap::with_capacity((world_size as f32).sqrt().floor() as usize),
+    });
+
+    Box::into_raw(world)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn sim_destroy(ptr: *mut World) {
+    let _ = unsafe { Box::from_raw(ptr) };
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn sim_get_map_ptr(ptr: *mut World) -> *const u16 {
+    let world = unsafe { &mut *ptr };
+    world.map.as_ptr()
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn sim_get_map_len(ptr: *mut World) -> u64 {
+    let world = unsafe { &mut *ptr };
+    world.map.len() as u64
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn sim_entity_get_float(
+    ptr: *mut World,
+    x: u32,
+    y: u32,
+    z: u32,
+    prop_id: u16,
+    out_value: *mut f32,
+) -> u8 {
+    let world = unsafe { &mut *ptr };
+
+    if let Some(idx) = world.calc_index(x, y, z) {
+        if let Some(entity) = world.entities.get(&idx) {
+            if let Some(val) = entity.get_float(prop_id) {
+                unsafe { *out_value = val }
+                return 1;
+            }
+        }
+    }
+
+    0
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn sim_entity_get_int(
+    ptr: *mut World,
+    x: u32,
+    y: u32,
+    z: u32,
+    prop_id: u16,
+    out_value: *mut i32,
+) -> u8 {
+    let world = unsafe { &mut *ptr };
+
+    if let Some(idx) = world.calc_index(x, y, z) {
+        if let Some(entity) = world.entities.get(&idx) {
+            if let Some(val) = entity.get_int(prop_id) {
+                unsafe { *out_value = val }
+                return 1;
+            }
+        }
+    }
+
+    0
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn sim_tick(ptr: *mut World) {
+    let world = unsafe { &mut *ptr };
+
+    for (_, entity) in world.entities.iter_mut() {
+        entity.tick();
+    }
+}
+
+
+========================================
+PLIK: ./brain/src/world.rs
+========================================
+use std::{collections::HashMap, u32};
+
+use crate::block_entity::BlockEntity;
+
+pub struct World {
+    pub width: u32,
+    pub height: u32,
+    pub depth: u32,
+
+    pub map: Vec<u16>,
+    pub entities: HashMap<usize, Box<dyn BlockEntity>>,
+}
+
+impl World {
+    pub fn calc_index(&self, x: u32, y: u32, z: u32) -> Option<usize> {
+        if x >= self.width || y >= self.height || z >= self.depth {
+            return None;
+        }
+
+        let idx: usize = x as usize
+            + y as usize * self.width as usize
+            + z as usize * self.width as usize * self.height as usize;
+
+        Some(idx)
+    }
+}
+
+
+========================================
+PLIK: ./brain/src/machines/mod.rs
+========================================
+pub mod chest;
+pub mod furnace;
+
+
+========================================
+PLIK: ./brain/src/machines/chest.rs
+========================================
+use crate::{block_entity::BlockEntity, constants::PROP_ITEM_COUNT, utils::is_int_positive};
+
+pub struct Chest {
+    pub inv_size: u16,
+}
+
+impl BlockEntity for Chest {
+    fn get_int(&self, id: u16) -> Option<i32> {
+        match id {
+            PROP_ITEM_COUNT => Some(self.inv_size as i32),
+            _ => None,
+        }
+    }
+
+    fn set_int(&mut self, id: u16, value: i32) {
+        match id {
+            PROP_ITEM_COUNT if is_int_positive(value) => self.inv_size = value as u16,
+            _ => {}
+        }
+    }
+}
+
+
+========================================
+PLIK: ./brain/src/machines/furnace.rs
+========================================
+use crate::{
+    block_entity::BlockEntity,
+    constants::{PROP_FUEL_LEVEL, PROP_IS_ACTIVE, PROP_MAX_FUEL},
+    utils::is_int_boolean,
+};
+
+pub struct Furnace {
+    fuel_level: f32,
+    max_fuel_level: f32,
+}
+
+impl BlockEntity for Furnace {
+    fn get_float(&self, id: u16) -> Option<f32> {
+        match id {
+            PROP_FUEL_LEVEL => Some(self.fuel_level),
+            PROP_MAX_FUEL => Some(self.max_fuel_level),
+            _ => None,
+        }
+    }
+
+    fn get_int(&self, id: u16) -> Option<i32> {
+        match id {
+            PROP_IS_ACTIVE if self.fuel_level != 0.0 => Some(1),
+            _ => None,
+        }
+    }
+
+    fn set_float(&mut self, id: u16, value: f32) {
+        match id {
+            PROP_FUEL_LEVEL => self.fuel_level = value,
+            PROP_MAX_FUEL => self.max_fuel_level = value,
+            _ => {}
+        }
+    }
+
+    fn tick(&mut self) {
+        if self.fuel_level > 0.0 {
+            self.fuel_level -= 0.1;
+        }
+    }
+}
+
+
+========================================
+PLIK: ./brain/src/constants.rs
+========================================
+// Floaty (Wartości ciągłe)
+pub const PROP_FUEL_LEVEL: u16 = 1;
+pub const PROP_MAX_FUEL: u16 = 2;
+
+// Inty (Wartości dyskretne / stany)
+pub const PROP_IS_ACTIVE: u16 = 100;
+pub const PROP_ITEM_COUNT: u16 = 101;

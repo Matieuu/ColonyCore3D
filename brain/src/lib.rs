@@ -13,4 +13,99 @@
 )]
 #![cfg_attr(not(debug_assertions), deny(debug_assertions))]
 
-pub mod game_state;
+use std::collections::HashMap;
+
+use crate::world::World;
+
+pub mod block_entity;
+pub mod constants;
+pub mod machines;
+pub mod utils;
+pub mod world;
+
+#[unsafe(no_mangle)]
+pub extern "C" fn sim_init(x: u32, y: u32, z: u32) -> *mut World {
+    let world_size = x * y * z;
+
+    let world = Box::new(World {
+        width: x,
+        height: y,
+        depth: z,
+        map: vec![0; world_size as usize],
+        entities: HashMap::with_capacity((world_size as f32).sqrt().floor() as usize),
+    });
+
+    Box::into_raw(world)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn sim_destroy(ptr: *mut World) {
+    let _ = unsafe { Box::from_raw(ptr) };
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn sim_get_map_ptr(ptr: *mut World) -> *const u16 {
+    let world = unsafe { &mut *ptr };
+    world.map.as_ptr()
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn sim_get_map_len(ptr: *mut World) -> u64 {
+    let world = unsafe { &mut *ptr };
+    world.map.len() as u64
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn sim_entity_get_float(
+    ptr: *mut World,
+    x: u32,
+    y: u32,
+    z: u32,
+    prop_id: u16,
+    out_value: *mut f32,
+) -> u8 {
+    let world = unsafe { &mut *ptr };
+
+    if let Some(idx) = world.calc_index(x, y, z) {
+        if let Some(entity) = world.entities.get(&idx) {
+            if let Some(val) = entity.get_float(prop_id) {
+                unsafe { *out_value = val }
+                return 1;
+            }
+        }
+    }
+
+    0
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn sim_entity_get_int(
+    ptr: *mut World,
+    x: u32,
+    y: u32,
+    z: u32,
+    prop_id: u16,
+    out_value: *mut i32,
+) -> u8 {
+    let world = unsafe { &mut *ptr };
+
+    if let Some(idx) = world.calc_index(x, y, z) {
+        if let Some(entity) = world.entities.get(&idx) {
+            if let Some(val) = entity.get_int(prop_id) {
+                unsafe { *out_value = val }
+                return 1;
+            }
+        }
+    }
+
+    0
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn sim_tick(ptr: *mut World) {
+    let world = unsafe { &mut *ptr };
+
+    for (_, entity) in world.entities.iter_mut() {
+        entity.tick();
+    }
+}

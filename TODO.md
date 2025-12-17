@@ -68,8 +68,8 @@
 - [x] **Sanity Check:** Widzisz obracający się sześcian 3D?
 
 ### M2.2: Płaski Świat w Rust
-- [ ] W Rust: Stwórz `Vec<BlockType>` o rozmiarze np. 16x16. Wypełnij losowymi danymi.
-- [ ] W Rust: Eksportuj funkcję `get_map_ptr()` i `get_map_len()`.
+- [x] W Rust: Stwórz `Vec<BlockType>` o rozmiarze np. 16x16. Wypełnij losowymi danymi.
+- [x] W Rust: Eksportuj funkcję `get_map_ptr()` i `get_map_len()`.
 
 ### M2.3: Instanced Rendering (Big Boss)
 - [ ] W C#: Zmień `glDrawElements` na `glDrawElementsInstanced`.
