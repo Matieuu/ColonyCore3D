@@ -5,8 +5,8 @@ use crate::{
 };
 
 pub struct Furnace {
-    fuel_level: f32,
-    max_fuel_level: f32,
+    pub fuel_level: f32,
+    pub max_fuel_level: f32,
 }
 
 impl BlockEntity for Furnace {

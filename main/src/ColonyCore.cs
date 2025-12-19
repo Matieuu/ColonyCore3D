@@ -16,10 +16,10 @@ class ColonyCore {
     private ImGuiController _controller = null!;
     private Shader _shader = null!;
 
-    // private IntPtr _gameState = IntPtr.Zero;
+    private IntPtr _simHandle = IntPtr.Zero;
 
     private BufferObject<float> _vbo = null!;
-    private BufferObject<uint> _ebo = null!;
+    private BufferObject<float> _instanceVbo = null!;
     private VertexArrayObject<float, uint> _vao = null!;
 
     public ColonyCore() {
@@ -45,65 +45,78 @@ class ColonyCore {
         _controller = new ImGuiController(_gl, _window, _input);
         _shader = new Shader(_gl, "shader.vert", "shader.frag");
 
-        // _gameState = NativeLib.InitGame();
+        _simHandle = NativeLib.Sim_Init(100, 20, 100);
         _gl.Enable(EnableCap.DepthTest);
         // _gl.Disable(EnableCap.CullFace);
 
-        // 1. Wierzchołki: Każdy punkt definiujemy TYLKO RAZ
-        // X, Y, Z,    R, G, B
-        float[] triangleVertices = {
-            0.0f,  0.5f,  0.0f,   1.0f, 0.0f, 0.0f, // 0: Czubek (Czerwony)
-           -0.5f, -0.5f,  0.5f,   0.0f, 1.0f, 0.0f, // 1: Lewy Przód (Zielony)
-            0.5f, -0.5f,  0.5f,   0.0f, 0.0f, 1.0f, // 2: Prawy Przód (Niebieski)
-            0.0f, -0.5f, -0.5f,   1.0f, 1.0f, 0.0f  // 3: Tył (Żółty)
-        };
-
-        // 2. Indeksy: Tylko liczby całkowite (uint)
-        // Mówimy: "Zrób trójkąt z wierzchołka 0, 1 i 2"
-        uint[] triangleIndices = {
-            0, 1, 2, // Przód
-            0, 2, 3, // Prawa
-            0, 3, 1, // Lewa
-            1, 2, 3  // Podstawa
-        };
-
-        // Wierzchołki kostki: X, Y, Z,  R, G, B
         float[] cubeVertices = {
-            -0.5f, -0.5f, -0.5f,    0.0f, 0.0f, 0.0f,   // 0: left down front
-             0.5f, -0.5f, -0.5f,    1.0f, 0.0f, 1.0f,   // 1: right down front
-            -0.5f,  0.5f, -0.5f,    0.0f, 1.0f, 0.0f,   // 2: left up front
-             0.5f,  0.5f, -0.5f,    1.0f, 1.0f, 1.0f,   // 3: right up front
-            -0.5f, -0.5f,  0.5f,    0.0f, 0.0f, 1.0f,   // 4: left down back
-             0.5f, -0.5f,  0.5f,    1.0f, 0.0f, 1.0f,   // 5: right down back
-            -0.5f,  0.5f,  0.5f,    0.0f, 1.0f, 1.0f,   // 6: left up back
-             0.5f,  0.5f,  0.5f,    1.0f, 1.0f, 1.0f,   // 7: right up back
-        };
+            // X, Y, Z,           R, G, B
+            // Ściana Przednia
+            -0.5f, -0.5f,  0.5f,  0.6f, 0.6f, 0.6f,
+            0.5f, -0.5f,  0.5f,  0.6f, 0.6f, 0.6f,
+            0.5f,  0.5f,  0.5f,  0.6f, 0.6f, 0.6f,
+            0.5f,  0.5f,  0.5f,  0.6f, 0.6f, 0.6f,
+            -0.5f,  0.5f,  0.5f,  0.6f, 0.6f, 0.6f,
+            -0.5f, -0.5f,  0.5f,  0.6f, 0.6f, 0.6f,
 
-        uint[] cubeIndices = {
-            0, 1, 4,
-            1, 4, 5,
-            0, 1, 2,
-            1, 2, 3,
-            1, 3, 5,
-            3, 5, 7,
-            0, 2, 4,
-            2, 4, 6,
-            4, 5, 6,
-            5, 6, 7,
-            2, 3, 6,
-            3, 6, 7
+            // Ściana Tylna
+            -0.5f, -0.5f, -0.5f,  0.4f, 0.4f, 0.4f,
+            0.5f, -0.5f, -0.5f,  0.4f, 0.4f, 0.4f,
+            0.5f,  0.5f, -0.5f,  0.4f, 0.4f, 0.4f,
+            0.5f,  0.5f, -0.5f,  0.4f, 0.4f, 0.4f,
+            -0.5f,  0.5f, -0.5f,  0.4f, 0.4f, 0.4f,
+            -0.5f, -0.5f, -0.5f,  0.4f, 0.4f, 0.4f,
+
+            // Ściana Lewa
+            -0.5f,  0.5f,  0.5f,  0.5f, 0.5f, 0.5f,
+            -0.5f,  0.5f, -0.5f,  0.5f, 0.5f, 0.5f,
+            -0.5f, -0.5f, -0.5f,  0.5f, 0.5f, 0.5f,
+            -0.5f, -0.5f, -0.5f,  0.5f, 0.5f, 0.5f,
+            -0.5f, -0.5f,  0.5f,  0.5f, 0.5f, 0.5f,
+            -0.5f,  0.5f,  0.5f,  0.5f, 0.5f, 0.5f,
+
+            // Ściana Prawa
+            0.5f,  0.5f,  0.5f,  0.7f, 0.7f, 0.7f,
+            0.5f,  0.5f, -0.5f,  0.7f, 0.7f, 0.7f,
+            0.5f, -0.5f, -0.5f,  0.7f, 0.7f, 0.7f,
+            0.5f, -0.5f, -0.5f,  0.7f, 0.7f, 0.7f,
+            0.5f, -0.5f,  0.5f,  0.7f, 0.7f, 0.7f,
+            0.5f,  0.5f,  0.5f,  0.7f, 0.7f, 0.7f,
+
+            // Ściana Dolna
+            -0.5f, -0.5f, -0.5f,  0.3f, 0.3f, 0.3f,
+            0.5f, -0.5f, -0.5f,  0.3f, 0.3f, 0.3f,
+            0.5f, -0.5f,  0.5f,  0.3f, 0.3f, 0.3f,
+            0.5f, -0.5f,  0.5f,  0.3f, 0.3f, 0.3f,
+            -0.5f, -0.5f,  0.5f,  0.3f, 0.3f, 0.3f,
+            -0.5f, -0.5f, -0.5f,  0.3f, 0.3f, 0.3f,
+
+            // Ściana Górna
+            -0.5f,  0.5f, -0.5f,  0.8f, 0.8f, 0.8f,
+            0.5f,  0.5f, -0.5f,  0.8f, 0.8f, 0.8f,
+            0.5f,  0.5f,  0.5f,  0.8f, 0.8f, 0.8f,
+            0.5f,  0.5f,  0.5f,  0.8f, 0.8f, 0.8f,
+            -0.5f,  0.5f,  0.5f,  0.8f, 0.8f, 0.8f,
+            -0.5f,  0.5f, -0.5f,  0.8f, 0.8f, 0.8f
         };
 
         _vbo = new BufferObject<float>(_gl, cubeVertices, BufferTargetARB.ArrayBuffer);
-        _ebo = new BufferObject<uint>(_gl, cubeIndices, BufferTargetARB.ElementArrayBuffer);
-        _vao = new VertexArrayObject<float, uint>(_gl, _vbo, _ebo);
+        _instanceVbo = new BufferObject<float>(_gl, new float[30_000], BufferTargetARB.ArrayBuffer, BufferUsageARB.DynamicDraw);
 
+        _vao = new VertexArrayObject<float, uint>(_gl, _vbo);
         _vao.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, 6, 0);
         _vao.VertexAttributePointer(1, 3, VertexAttribPointerType.Float, 6, 3);
+
+        _instanceVbo.Bind();
+        unsafe {
+            _gl.EnableVertexAttribArray(2);
+            _gl.VertexAttribPointer(2, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), null);
+            _gl.VertexAttribDivisor(2, 1);
+        }
     }
 
     private void OnUpdate(double deltaTime) {
-        // NativeLib.AddTicks(_gameState, 1);
+        NativeLib.Sim_Tick(_simHandle);
 
         _controller.Update((float)deltaTime);
     }
@@ -115,32 +128,63 @@ class ColonyCore {
         _shader.Use();
 
         float time = (float)DateTime.Now.TimeOfDay.TotalSeconds;
-        var model = Matrix4X4.CreateRotationY<float>(time * 2f) * Matrix4X4.CreateRotationX<float>(time * .5f);
-        var view = Matrix4X4.CreateLookAt<float>(new Vector3D<float>(0, 1, 3), Vector3D<float>.Zero, Vector3D<float>.UnitY);
-        var projection = Matrix4X4.CreatePerspectiveFieldOfView<float>(
+        // var model = Matrix4X4.CreateRotationY(time * 2f) * Matrix4X4.CreateRotationX(time * .5f);
+        var view = Matrix4X4.CreateLookAt(new Vector3D<float>(20, 5, 20), new Vector3D<float>(10, 1, 10), Vector3D<float>.UnitY);
+        var projection = Matrix4X4.CreatePerspectiveFieldOfView(
             (float)(60f * Math.PI / 180f),
             (float)_window.Size.X / (float)_window.Size.Y,
             .1f,
             100f
         );
 
-        _shader.SetUniform("uModel", model);
+        // _shader.SetUniform("uModel", model);
         _shader.SetUniform("uView", view);
         _shader.SetUniform("uProjection", projection);
 
+        IntPtr mapPtr = NativeLib.Sim_GetMapPtr(_simHandle);
+        ulong mapLen = NativeLib.Sim_GetMapLen(_simHandle);
+        uint width = NativeLib.World_GetWidth(_simHandle);
+        uint height = NativeLib.World_GetHeight(_simHandle);
+        uint depth = NativeLib.World_GetDepth(_simHandle);
+
+        var instancePositions = new List<float>();
+
+        unsafe {
+            ushort* map = (ushort*)mapPtr;
+
+            for (uint y = 0; y < height; y++)
+                for (uint z = 0; z < depth; z++)
+                    for (uint x = 0; x < width; x++) {
+                        long idx = x + (y * width) + (z * width * height);
+                        if (map[idx] != 0) {
+                            instancePositions.Add(x);
+                            instancePositions.Add(y);
+                            instancePositions.Add(z);
+                        }
+                    }
+        }
+
+        _instanceVbo.Bind();
+        unsafe {
+            fixed (float* d = instancePositions.ToArray()) {
+                _gl.BufferSubData(BufferTargetARB.ArrayBuffer, 0, (nuint)(instancePositions.Count * sizeof(float)), d);
+            }
+        }
+
         _vao.Bind();
         unsafe {
-            _gl.DrawElements(PrimitiveType.Triangles, 36, DrawElementsType.UnsignedInt, null);
+            _gl.DrawArraysInstanced(PrimitiveType.Triangles, 0, 36, (uint)(instancePositions.Count / 3));
         }
 
         _controller.Render();
     }
 
     private void OnClose() {
+        _instanceVbo.Dispose();
         _vbo.Dispose();
         _vao.Dispose();
 
-        // NativeLib.DestroyGame(_gameState);
+        NativeLib.Sim_Destroy(_simHandle);
         _shader.Dispose();
         _controller?.Dispose();
         _gl?.Dispose();

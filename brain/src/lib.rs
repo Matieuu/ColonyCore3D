@@ -15,7 +15,7 @@
 
 use std::collections::HashMap;
 
-use crate::world::World;
+use crate::{machines::furnace::Furnace, world::World};
 
 pub mod block_entity;
 pub mod constants;
@@ -27,7 +27,7 @@ pub mod world;
 pub extern "C" fn sim_init(x: u32, y: u32, z: u32) -> *mut World {
     let world_size = x * y * z;
 
-    let world = Box::new(World {
+    let mut world = Box::new(World {
         width: x,
         height: y,
         depth: z,
@@ -35,7 +35,43 @@ pub extern "C" fn sim_init(x: u32, y: u32, z: u32) -> *mut World {
         entities: HashMap::with_capacity((world_size as f32).sqrt().floor() as usize),
     });
 
+    for dx in 0..x {
+        for dz in 0..z {
+            if let Some(idx) = world.calc_index(dx, 0, dz) {
+                world.map[idx] = 1;
+            }
+        }
+    }
+
+    if let Some(idx) = world.calc_index(10, 1, 10) {
+        use crate::machines::furnace;
+        let mut furnace = Furnace {
+            fuel_level: 50.0,
+            max_fuel_level: 100.0,
+        };
+
+        world.entities.insert(idx, Box::new(furnace));
+    }
+
     Box::into_raw(world)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn world_get_width(world: *const World) -> u32 {
+    let world = unsafe { &*world };
+    world.width
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn world_get_height(world: *const World) -> u32 {
+    let world = unsafe { &*world };
+    world.height
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn world_get_depth(world: *const World) -> u32 {
+    let world = unsafe { &*world };
+    world.depth
 }
 
 #[unsafe(no_mangle)]
