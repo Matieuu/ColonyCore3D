@@ -72,16 +72,16 @@
 - [x] W Rust: Eksportuj funkcję `get_map_ptr()` i `get_map_len()`.
 
 ### M2.3: Instanced Rendering (Big Boss)
-- [ ] W C#: Zmień `glDrawElements` na `glDrawElementsInstanced`.
-- [ ] Stwórz drugi VBO (Instance VBO) trzymający pozycje (X, Y, Z) dla każdej instancji.
-- [ ] W `OnRender`: Pobierz wskaźnik z Rusta, skopiuj dane do Instance VBO (`glBufferSubData`).
-- [ ] W Vertex Shader: Dodaj `layout (location = 1) in vec3 aInstancePos` i dodaj to do pozycji wierzchołka.
-- [ ] **Sanity Check:** Widzisz siatkę 16x16 sześcianów? Wygląda jak podłoga?
+- [x] W C#: Zmień `glDrawElements` na `glDrawElementsInstanced`.
+- [x] Stwórz drugi VBO (Instance VBO) trzymający pozycje (X, Y, Z) dla każdej instancji.
+- [x] W `OnRender`: Pobierz wskaźnik z Rusta, skopiuj dane do Instance VBO (`glBufferSubData`).
+- [x] W Vertex Shader: Dodaj `layout (location = 1) in vec3 aInstancePos` i dodaj to do pozycji wierzchołka.
+- [x] **Sanity Check:** Widzisz siatkę 16x16 sześcianów? Wygląda jak podłoga?
 
 ### M2.4: Izometria
-- [ ] Zmień macierz projekcji z Perspective na Orthographic.
-- [ ] Ustaw kamerę pod kątem (np. 45 stopni w dół, 45 w bok).
-- [ ] **Sanity Check:** Wygląda jak klasyczny RPG/RTS?
+- [x] Zmień macierz projekcji z Perspective na Orthographic.
+- [x] Ustaw kamerę pod kątem (np. 45 stopni w dół, 45 w bok).
+- [x] **Sanity Check:** Wygląda jak klasyczny RPG/RTS?
 
 ---
 
@@ -89,9 +89,9 @@
 *Cel: Klikanie w klocki.*
 
 ### M3.1: Kamera Ruchoma
-- [ ] Obsłuż zdarzenia klawiatury (WSAD) w C#.
-- [ ] Aktualizuj pozycję kamery ("Eye") w macierzy View.
-- [ ] **Sanity Check:** Możesz "latać" nad mapą?
+- [x] Obsłuż zdarzenia klawiatury (WSAD) w C#.
+- [x] Aktualizuj pozycję kamery ("Eye") w macierzy View.
+- [x] **Sanity Check:** Możesz "latać" nad mapą?
 
 ### M3.2: Raycast Math
 - [ ] Pobierz pozycję myszy (X, Y) z okna.
