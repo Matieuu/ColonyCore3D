@@ -15,11 +15,18 @@
 
 use std::collections::HashMap;
 
-use crate::{machines::furnace::Furnace, world::World};
+use crate::{
+    axis_state::{AxisState, Side},
+    machines::furnace::Furnace,
+    ray::{Ray, RaycastResult},
+    world::World,
+};
 
+pub mod axis_state;
 pub mod block_entity;
 pub mod constants;
 pub mod machines;
+pub mod ray;
 pub mod utils;
 pub mod world;
 
@@ -143,5 +150,80 @@ pub extern "C" fn sim_tick(ptr: *mut World) {
 
     for (_, entity) in world.entities.iter_mut() {
         entity.tick();
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn sim_raycast(ptr: *mut World, ray: Ray) -> RaycastResult {
+    if !ray.dir_x.is_finite()
+        || !ray.dir_y.is_finite()
+        || !ray.dir_z.is_finite()
+        || !ray.origin_x.is_finite()
+        || !ray.origin_y.is_finite()
+        || !ray.origin_z.is_finite()
+    {
+        return RaycastResult {
+            hit: 0,
+            x: 0,
+            y: 0,
+            z: 0,
+            face: 0,
+        };
+    }
+
+    let world = unsafe { &*ptr };
+
+    let mut ax = AxisState::new(ray.origin_x, ray.dir_x);
+    let mut ay = AxisState::new(ray.origin_y, ray.dir_y);
+    let mut az = AxisState::new(ray.origin_z, ray.dir_z);
+
+    let max_dist = 100.0;
+    let mut last_face = Side::NORTH;
+
+    while ax.side_dist.min(ay.side_dist).min(az.side_dist) < max_dist {
+        if ax.side_dist < ay.side_dist && ax.side_dist < az.side_dist {
+            ax.next();
+            last_face = if ax.step > 0 { Side::WEST } else { Side::EAST };
+        } else if ay.side_dist < ax.side_dist && ay.side_dist < az.side_dist {
+            ay.next();
+            last_face = if ay.step > 0 { Side::DOWN } else { Side::UP };
+        } else if az.side_dist < ax.side_dist && az.side_dist < ay.side_dist {
+            az.next();
+            last_face = if az.step > 0 {
+                Side::SOUTH
+            } else {
+                Side::NORTH
+            };
+        }
+
+        if ax.map_pos < 0 || ay.map_pos < 0 || az.map_pos < 0 {
+            continue;
+        }
+
+        let x = ax.map_pos as u32;
+        let y = ay.map_pos as u32;
+        let z = az.map_pos as u32;
+
+        if let Some(idx) = world.calc_index(x, y, z) {
+            if world.map[idx] != 0 {
+                return RaycastResult {
+                    hit: 1,
+                    x: ax.map_pos,
+                    y: ay.map_pos,
+                    z: az.map_pos,
+                    face: last_face as u8,
+                };
+            }
+        } else {
+            break;
+        }
+    }
+
+    RaycastResult {
+        hit: 0,
+        x: 0,
+        y: 0,
+        z: 0,
+        face: 0,
     }
 }

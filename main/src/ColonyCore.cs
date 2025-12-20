@@ -1,5 +1,4 @@
 using System.Drawing;
-using System.Numerics;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
@@ -22,8 +21,10 @@ class ColonyCore {
     private IntPtr _simHandle = IntPtr.Zero;
     private Camera _camera = null!;
     private World _world = null!;
+    private SelectionRenderer _selectionRenderer = null!;
 
-    private Vector2 _lastMousePos = Vector2.Zero;
+    private Vector2D<float> _lastMousePos = Vector2D<float>.Zero;
+    private Vector3D<int> _blockSelected = Vector3D<int>.Zero;
 
     public ColonyCore() {
         _window = Window.Create(WindowOptions.Default with {
@@ -56,6 +57,7 @@ class ColonyCore {
         _simHandle = NativeLib.Sim_Init(100, 20, 100);
         _camera = new Camera(_window.Size.X, _window.Size.Y);
         _world = new World(_gl, _simHandle);
+        _selectionRenderer = new SelectionRenderer(_gl);
 
         _gl.Enable(EnableCap.DepthTest);
         // _gl.Disable(EnableCap.CullFace);
@@ -86,10 +88,16 @@ class ColonyCore {
         _shader.SetUniform("uProjection", _camera.ProjectionMatrix);
 
         _world.Render();
+
+        if (_blockSelected != Vector3D<int>.Zero) {
+            _selectionRenderer.Render(_camera, _blockSelected);
+        }
+
         _controller.Render();
     }
 
     private void OnClose() {
+        _selectionRenderer.Dispose();
         _world.Dispose();
         NativeLib.Sim_Destroy(_simHandle);
         _shader.Dispose();
@@ -103,23 +111,34 @@ class ColonyCore {
     }
 
     private void OnMouseDown(IMouse mouse, MouseButton button) {
-        if (button == MouseButton.Middle || button == MouseButton.Right) {
-            _lastMousePos = mouse.Position;
+        if (button == MouseButton.Left) {
+            var ray = _camera.GetRayFromMouse(
+                new(mouse.Position.X, mouse.Position.Y),
+                new(_window.Size.X, _window.Size.Y)
+            );
+            var raycastResult = NativeLib.Sim_Raycast(_simHandle, ray);
+
+            if (raycastResult.Hit == 1) {
+                _blockSelected = new(raycastResult.X, raycastResult.Y, raycastResult.Z);
+            } else {
+                _blockSelected = Vector3D<int>.Zero;
+            }
         }
     }
 
-    private void OnMouseMove(IMouse mouse, Vector2 pos) {
-        var delta = _lastMousePos - pos;
+    private void OnMouseMove(IMouse mouse, System.Numerics.Vector2 pos) {
+        Vector2D<float> mousePos = new(pos.X, pos.Y);
+        var delta = _lastMousePos - mousePos;
 
-        if (mouse.IsButtonPressed(MouseButton.Left)) {
+        if (mouse.IsButtonPressed(MouseButton.Right)) {
             _camera.Pan(delta.X, delta.Y);
         }
 
-        if (mouse.IsButtonPressed(MouseButton.Right)) {
+        if (mouse.IsButtonPressed(MouseButton.Middle)) {
             _camera.Rotate(delta.X, delta.Y);
         }
 
-        _lastMousePos = pos;
+        _lastMousePos = mousePos;
     }
 
 }

@@ -4,57 +4,6 @@ namespace ColonyCore;
 
 public class World {
 
-    private readonly float[] CUBE_VERTICES = {
-        // X, Y, Z,           R, G, B
-        // Ściana Przednia
-        -0.5f, -0.5f,  0.5f,  0.6f, 0.6f, 0.6f,
-         0.5f, -0.5f,  0.5f,  0.6f, 0.6f, 0.6f,
-         0.5f,  0.5f,  0.5f,  0.6f, 0.6f, 0.6f,
-         0.5f,  0.5f,  0.5f,  0.6f, 0.6f, 0.6f,
-        -0.5f,  0.5f,  0.5f,  0.6f, 0.6f, 0.6f,
-        -0.5f, -0.5f,  0.5f,  0.6f, 0.6f, 0.6f,
-
-        // Ściana Tylna
-        -0.5f, -0.5f, -0.5f,  0.4f, 0.4f, 0.4f,
-         0.5f, -0.5f, -0.5f,  0.4f, 0.4f, 0.4f,
-         0.5f,  0.5f, -0.5f,  0.4f, 0.4f, 0.4f,
-         0.5f,  0.5f, -0.5f,  0.4f, 0.4f, 0.4f,
-        -0.5f,  0.5f, -0.5f,  0.4f, 0.4f, 0.4f,
-        -0.5f, -0.5f, -0.5f,  0.4f, 0.4f, 0.4f,
-
-        // Ściana Lewa
-        -0.5f,  0.5f,  0.5f,  0.5f, 0.5f, 0.5f,
-        -0.5f,  0.5f, -0.5f,  0.5f, 0.5f, 0.5f,
-        -0.5f, -0.5f, -0.5f,  0.5f, 0.5f, 0.5f,
-        -0.5f, -0.5f, -0.5f,  0.5f, 0.5f, 0.5f,
-        -0.5f, -0.5f,  0.5f,  0.5f, 0.5f, 0.5f,
-        -0.5f,  0.5f,  0.5f,  0.5f, 0.5f, 0.5f,
-
-        // Ściana Prawa
-         0.5f,  0.5f,  0.5f,  0.7f, 0.7f, 0.7f,
-         0.5f,  0.5f, -0.5f,  0.7f, 0.7f, 0.7f,
-         0.5f, -0.5f, -0.5f,  0.7f, 0.7f, 0.7f,
-         0.5f, -0.5f, -0.5f,  0.7f, 0.7f, 0.7f,
-         0.5f, -0.5f,  0.5f,  0.7f, 0.7f, 0.7f,
-         0.5f,  0.5f,  0.5f,  0.7f, 0.7f, 0.7f,
-
-        // Ściana Dolna
-        -0.5f, -0.5f, -0.5f,  0.3f, 0.3f, 0.3f,
-         0.5f, -0.5f, -0.5f,  0.3f, 0.3f, 0.3f,
-         0.5f, -0.5f,  0.5f,  0.3f, 0.3f, 0.3f,
-         0.5f, -0.5f,  0.5f,  0.3f, 0.3f, 0.3f,
-        -0.5f, -0.5f,  0.5f,  0.3f, 0.3f, 0.3f,
-        -0.5f, -0.5f, -0.5f,  0.3f, 0.3f, 0.3f,
-
-        // Ściana Górna
-        -0.5f,  0.5f, -0.5f,  0.8f, 0.8f, 0.8f,
-         0.5f,  0.5f, -0.5f,  0.8f, 0.8f, 0.8f,
-         0.5f,  0.5f,  0.5f,  0.8f, 0.8f, 0.8f,
-         0.5f,  0.5f,  0.5f,  0.8f, 0.8f, 0.8f,
-        -0.5f,  0.5f,  0.5f,  0.8f, 0.8f, 0.8f,
-        -0.5f,  0.5f, -0.5f,  0.8f, 0.8f, 0.8f
-    };
-
     private GL _gl;
     private IntPtr _simHandle;
 
@@ -66,7 +15,7 @@ public class World {
         _gl = gl;
         _simHandle = simHandle;
 
-        _vbo = new BufferObject<float>(_gl, CUBE_VERTICES, BufferTargetARB.ArrayBuffer);
+        _vbo = new BufferObject<float>(_gl, Constants.CubeVertices, BufferTargetARB.ArrayBuffer);
         _instanceVbo = new BufferObject<float>(_gl, new float[30_000], BufferTargetARB.ArrayBuffer, BufferUsageARB.DynamicDraw);
         _vao = new VertexArrayObject<float, uint>(_gl, _vbo);
 
