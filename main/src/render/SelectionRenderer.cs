@@ -58,7 +58,7 @@ public class SelectionRenderer : IDisposable {
         _gl.UseProgram(_shaderProgram);
         _vao.Bind();
 
-        var model = Matrix4X4.CreateTranslation((float)blockPos.X, (float)blockPos.Y, (float)blockPos.Z);
+        var model = Matrix4X4.CreateTranslation<float>(blockPos.X, blockPos.Y, blockPos.Z);
         var mvp = model * camera.ViewMatrix * camera.ProjectionMatrix;
 
         int loc = _gl.GetUniformLocation(_shaderProgram, "uMVP");

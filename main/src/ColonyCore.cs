@@ -1,4 +1,5 @@
 using System.Drawing;
+using ImGuiNET;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
@@ -91,6 +92,9 @@ class ColonyCore {
 
         if (_blockSelected != Vector3D<int>.Zero) {
             _selectionRenderer.Render(_camera, _blockSelected);
+            ImGui.Begin("Selected block");
+            ImGui.Text($"X: {_blockSelected.X}; Y: {_blockSelected.Y}; Z: {_blockSelected.Z}");
+            ImGui.End();
         }
 
         _controller.Render();

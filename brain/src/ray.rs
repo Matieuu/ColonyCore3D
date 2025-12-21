@@ -1,12 +1,11 @@
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
 pub struct Ray {
     pub origin_x: f32,
     pub origin_y: f32,
     pub origin_z: f32,
-    pub dir_x: f32,
-    pub dir_y: f32,
-    pub dir_z: f32,
+    pub direction_x: f32,
+    pub direction_y: f32,
+    pub direction_z: f32,
 }
 
 #[repr(C)]

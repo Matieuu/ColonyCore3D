@@ -37,7 +37,7 @@ public static partial class NativeLib {
 
 
     [LibraryImport(LibName, EntryPoint = "sim_raycast")]
-    public static partial RaycastResult Sim_Raycast(IntPtr ptr, in Ray ray);
+    public static partial RaycastResult Sim_Raycast(IntPtr ptr, Ray ray);
 
 
 

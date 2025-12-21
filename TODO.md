@@ -94,28 +94,71 @@
 - [x] **Sanity Check:** Możesz "latać" nad mapą?
 
 ### M3.2: Raycast Math
-- [ ] Pobierz pozycję myszy (X, Y) z okna.
-- [ ] Przekształć ją na "Ray World Direction" (korzystając z odwrotności macierzy). Wyświetl wartości w ImGui.
-- [ ] **Sanity Check:** Gdy ruszasz myszką, wartości wektora w ImGui się zmieniają sensownie?
+- [x] Pobierz pozycję myszy (X, Y) z okna.
+- [x] Przekształć ją na "Ray World Direction" (korzystając z odwrotności macierzy). Wyświetl wartości w ImGui.
+- [x] **Sanity Check:** Gdy ruszasz myszką, wartości wektora w ImGui się zmieniają sensownie?
 
 ### M3.3: Integracja
-- [ ] Prześlij Origin i Direction kamery do Rusta.
-- [ ] W Rust: Napisz prostą pętlę sprawdzającą kolizję z podłogą (na razie brute-force lub proste `if z == 0`).
-- [ ] W C#: Narysuj "Wireframe Cube" (ramkę) w miejscu, które zwrócił Rust.
-- [ ] **Sanity Check:** Czy ramka "skacze" po klockach pod Twoją myszką?
+- [x] Prześlij Origin i Direction kamery do Rusta.
+- [x] W Rust: Napisz prostą pętlę sprawdzającą kolizję z podłogą (na razie brute-force lub proste `if z == 0`).
+- [x] W C#: Narysuj "Wireframe Cube" (ramkę) w miejscu, które zwrócił Rust.
+- [x] **Sanity Check:** Czy ramka "skacze" po klockach pod Twoją myszką?
 
 ---
 
-## M4: Logika (Dopiero teraz!)
-*Cel: Coś się rusza samo.*
+# Sprint M4: Life & Construction (Życie i Budowanie)
 
-### M4.1: Jednostka
-- [ ] W Rust: Dodaj `struct Pawn { x: f32, y: f32 }`.
-- [ ] W Rust: W `sim_tick` zmieniaj `x` o małą wartość (np. `0.01`).
-- [ ] W C#: Pobierz listę pionków i wyrenderuj je jako inny kolor sześcianu (lub inny model).
-- [ ] **Sanity Check:** Czy czerwony klocek przesuwa się powoli po mapie?
+**Cel główny:** Gracz może modyfikować świat (budować/niszczyć) oraz obserwować autonomiczny ruch jednostki.
+**Uwaga UX:** LPM służy do selekcji/ruchu, PPM do budowania.
 
-### M4.2: Game Loop
-- [ ] Zaimplementuj akumulator czasu w C# (Fixed Time Step).
-- [ ] Rozdziel logiczny FPS (60) od graficznego FPS (unlimited).
-- [ ] **Sanity Check:** Gra działa tak samo szybko na 60 FPS i na 500 FPS?
+---
+
+## M4.1: Interakcja "God Mode" (Budowanie i Niszczenie)
+*Cel: Weryfikacja dwukierunkowej komunikacji C# <-> Rust i modyfikacji mapy.*
+
+### Core (Rust)
+- [ ] Zaimplementuj funkcję `sim_place_block(ptr, x, y, z, face_id, block_type)`.
+    - *Logika:* Musi obliczyć koordynaty **sąsiada** na podstawie `face_id` (np. jeśli kliknięto górę [Y+], to y+1).
+    - *Safety:* Sprawdź `bounds` (czy nie wychodzimy poza mapę).
+- [ ] Zaimplementuj funkcję `sim_remove_block(ptr, x, y, z)`.
+    - *Logika:* Ustawia wartość `0` (powietrze) w danym indeksie.
+
+### Host (C#)
+- [ ] **Input Handling:** Rozdziel akcje myszy:
+    - `PPM` (Prawy): Wywołuje `NativeLib.Sim_PlaceBlock` (np. ID = 1, Kamień).
+    - `Shift + PPM`: Wywołuje `NativeLib.Sim_RemoveBlock`.
+- [ ] **Rendering Update:** Zaimplementuj flagę `_isWorldDirty`.
+    - Jeśli zmieniono blok -> ustaw `true`.
+    - W `OnRender` -> jeśli `true`, przebuduj i wyślij `_instanceVbo` do GPU.
+- [ ] **Sanity Check:** Czy mogę postawić wieżę z klocków i ją zburzyć?
+
+---
+
+## M4.2: Jednostka (The Pawn) - Struktura i Rendering
+*Cel: Wyświetlenie pierwszego dynamicznego obiektu (nie będącego terenem).*
+
+### Core (Rust)
+- [ ] Zdefiniuj `struct Pawn { pub x: f32, pub y: f32, pub z: f32 }`.
+- [ ] Dodaj `pawns: Vec<Pawn>` do struktury `World`.
+- [ ] W `sim_init`: Dodaj jednego pionka na środku mapy (np. `x=50.5, y=podłoga+1, z=50.5`).
+- [ ] Eksportuj API FFI:
+    - `sim_get_pawns_len(ptr) -> u64`
+    - `sim_get_pawns_ptr(ptr) -> *const Pawn`
+
+### Host (C#)
+- [ ] Stwórz klasę `PawnRenderer`.
+    - Może używać tego samego sześcianu co teren, ale w kolorze **Czerwonym**.
+    - Skala modelu: np. `0.8` (żeby był mniejszy od bloku terenu).
+- [ ] W `OnRender`: Pobierz listę pionków i wyrenderuj je instancjonowaniem (lub pętlą, jeśli < 100 sztuk).
+- [ ] **Sanity Check:** Czy widzę czerwoną kostkę stojącą na mapie?
+
+---
+
+## M4.3: Prosty Ruch i Sterowanie (RTS Logic)
+*Cel: Jednostka przemieszcza się do wskazanego celu (bez omijania przeszkód).*
+
+### Core (Rust)
+- [ ] Rozbuduj `Pawn`: dodaj pola `target_x, target_y, target_z`.
+- [ ] Zaimplementuj funkcję `sim_command_move_pawn(ptr, pawn_id, x, y, z)`.
+- [ ] W `sim_tick`:
+    - Zaimplementuj prosty ruch wektorowy: `pos += (target - pos).normalized() * speed * dt`.

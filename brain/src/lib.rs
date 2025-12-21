@@ -155,9 +155,9 @@ pub extern "C" fn sim_tick(ptr: *mut World) {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn sim_raycast(ptr: *mut World, ray: Ray) -> RaycastResult {
-    if !ray.dir_x.is_finite()
-        || !ray.dir_y.is_finite()
-        || !ray.dir_z.is_finite()
+    if !ray.direction_x.is_finite()
+        || !ray.direction_y.is_finite()
+        || !ray.direction_z.is_finite()
         || !ray.origin_x.is_finite()
         || !ray.origin_y.is_finite()
         || !ray.origin_z.is_finite()
@@ -173,9 +173,9 @@ pub extern "C" fn sim_raycast(ptr: *mut World, ray: Ray) -> RaycastResult {
 
     let world = unsafe { &*ptr };
 
-    let mut ax = AxisState::new(ray.origin_x, ray.dir_x);
-    let mut ay = AxisState::new(ray.origin_y, ray.dir_y);
-    let mut az = AxisState::new(ray.origin_z, ray.dir_z);
+    let mut ax = AxisState::new(ray.origin_x, ray.direction_x);
+    let mut ay = AxisState::new(ray.origin_y, ray.direction_y);
+    let mut az = AxisState::new(ray.origin_z, ray.direction_z);
 
     let max_dist = 100.0;
     let mut last_face = Side::NORTH;
@@ -197,7 +197,7 @@ pub extern "C" fn sim_raycast(ptr: *mut World, ray: Ray) -> RaycastResult {
         }
 
         if ax.map_pos < 0 || ay.map_pos < 0 || az.map_pos < 0 {
-            continue;
+            break;
         }
 
         let x = ax.map_pos as u32;
@@ -215,7 +215,7 @@ pub extern "C" fn sim_raycast(ptr: *mut World, ray: Ray) -> RaycastResult {
                 };
             }
         } else {
-            break;
+            continue;
         }
     }
 
