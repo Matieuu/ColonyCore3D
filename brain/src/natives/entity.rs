@@ -1,0 +1,49 @@
+use crate::world::World;
+
+#[unsafe(no_mangle)]
+pub extern "C" fn entity_get_float(
+    ptr: *mut World,
+    x: u32,
+    y: u32,
+    z: u32,
+    prop_id: u16,
+    out_value: *mut f32,
+) -> u8 {
+    assert!(!ptr.is_null());
+    let world = unsafe { &mut *ptr };
+
+    if let Some(idx) = world.calc_index(x, y, z) {
+        if let Some(entity) = world.entities.get(&idx) {
+            if let Some(val) = entity.get_float(prop_id) {
+                unsafe { *out_value = val }
+                return 1;
+            }
+        }
+    }
+
+    0
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn entity_get_int(
+    ptr: *mut World,
+    x: u32,
+    y: u32,
+    z: u32,
+    prop_id: u16,
+    out_value: *mut i32,
+) -> u8 {
+    assert!(!ptr.is_null());
+    let world = unsafe { &mut *ptr };
+
+    if let Some(idx) = world.calc_index(x, y, z) {
+        if let Some(entity) = world.entities.get(&idx) {
+            if let Some(val) = entity.get_int(prop_id) {
+                unsafe { *out_value = val }
+                return 1;
+            }
+        }
+    }
+
+    0
+}

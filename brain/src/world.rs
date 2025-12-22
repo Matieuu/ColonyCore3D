@@ -1,6 +1,6 @@
 use std::{collections::HashMap, u32};
 
-use crate::block_entity::BlockEntity;
+use crate::render::block_entity::BlockEntity;
 
 pub struct World {
     pub width: u32,

@@ -1,4 +1,6 @@
-use crate::{block_entity::BlockEntity, constants::PROP_ITEM_COUNT, utils::is_int_positive};
+use crate::{
+    constants::PROP_ITEM_COUNT, render::block_entity::BlockEntity, utils::is_int_positive,
+};
 
 pub struct Chest {
     pub inv_size: u16,

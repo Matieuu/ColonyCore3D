@@ -1,6 +1,6 @@
 use crate::{
-    block_entity::BlockEntity,
     constants::{PROP_FUEL_LEVEL, PROP_IS_ACTIVE, PROP_MAX_FUEL},
+    render::block_entity::BlockEntity,
     utils::is_int_boolean,
 };
 

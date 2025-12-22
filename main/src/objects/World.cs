@@ -31,8 +31,8 @@ public class World {
     }
 
     public void Render() {
-        IntPtr mapPtr = NativeLib.Sim_GetMapPtr(_simHandle);
-        ulong mapLen = NativeLib.Sim_GetMapLen(_simHandle);
+        IntPtr mapPtr = NativeLib.World_GetMapPtr(_simHandle);
+        ulong mapLen = NativeLib.World_GetMapLen(_simHandle);
         uint width = NativeLib.World_GetWidth(_simHandle);
         uint height = NativeLib.World_GetHeight(_simHandle);
         uint depth = NativeLib.World_GetDepth(_simHandle);

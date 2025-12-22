@@ -29,39 +29,41 @@ public static partial class NativeLib {
     public static partial IntPtr Sim_Init(uint x, uint y, uint z);
 
     [LibraryImport(LibName, EntryPoint = "sim_destroy")]
-    public static partial void Sim_Destroy(IntPtr ptr);
+    public static partial void Sim_Destroy(IntPtr simHandle);
 
     [LibraryImport(LibName, EntryPoint = "sim_tick")]
-    public static partial void Sim_Tick(IntPtr ptr);
+    public static partial void Sim_Tick(IntPtr simHandle);
 
 
 
     [LibraryImport(LibName, EntryPoint = "sim_raycast")]
-    public static partial RaycastResult Sim_Raycast(IntPtr ptr, Ray ray);
+    public static partial RaycastResult Sim_Raycast(IntPtr simHandle, Ray ray);
 
 
 
-    [LibraryImport(LibName, EntryPoint = "sim_entity_get_float")]
-    public static partial byte Sim_TryGetEntityFloat(IntPtr ptr, uint x, uint y, uint z, ushort propId, out float out_value);
+    [LibraryImport(LibName, EntryPoint = "entity_get_float")]
+    public static partial byte Entity_TryGetFloat(IntPtr simHandle, uint x, uint y, uint z, ushort propId, out float out_value);
 
-    [LibraryImport(LibName, EntryPoint = "sim_entity_get_int")]
-    public static partial byte Sim_TryGetEntityInt(IntPtr ptr, uint x, uint y, uint z, ushort propId, out int out_value);
+    [LibraryImport(LibName, EntryPoint = "entity_get_int")]
+    public static partial byte Entity_TryGetInt(IntPtr simHandle, uint x, uint y, uint z, ushort propId, out int out_value);
 
-    [LibraryImport(LibName, EntryPoint = "sim_get_map_ptr")]
-    public static partial IntPtr Sim_GetMapPtr(IntPtr ptr);
 
-    [LibraryImport(LibName, EntryPoint = "sim_get_map_len")]
-    public static partial ulong Sim_GetMapLen(IntPtr ptr);
+
+    [LibraryImport(LibName, EntryPoint = "world_get_map_ptr")]
+    public static partial IntPtr World_GetMapPtr(IntPtr simHandle);
+
+    [LibraryImport(LibName, EntryPoint = "world_get_map_len")]
+    public static partial ulong World_GetMapLen(IntPtr simHandle);
 
 
 
     [LibraryImport(LibName, EntryPoint = "world_get_width")]
-    public static partial uint World_GetWidth(IntPtr ptr);
+    public static partial uint World_GetWidth(IntPtr simHandle);
 
     [LibraryImport(LibName, EntryPoint = "world_get_height")]
-    public static partial uint World_GetHeight(IntPtr ptr);
+    public static partial uint World_GetHeight(IntPtr simHandle);
 
     [LibraryImport(LibName, EntryPoint = "world_get_depth")]
-    public static partial uint World_GetDepth(IntPtr ptr);
+    public static partial uint World_GetDepth(IntPtr simHandle);
 
 }
