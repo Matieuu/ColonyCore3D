@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
+using Silk.NET.Maths;
 
 namespace ColonyCore;
 
@@ -32,12 +33,15 @@ public static partial class NativeLib {
     public static partial void Sim_Destroy(IntPtr simHandle);
 
     [LibraryImport(LibName, EntryPoint = "sim_tick")]
-    public static partial void Sim_Tick(IntPtr simHandle);
+    public static partial void Sim_Tick(IntPtr simHandle, float dt, Vector2D<float> input, byte jump);
 
 
 
     [LibraryImport(LibName, EntryPoint = "sim_raycast")]
-    public static partial RaycastResult Sim_Raycast(IntPtr simHandle, Ray ray);
+    public static partial RaycastResult Sim_Raycast(IntPtr simHandle, Ray ray, float distance);
+
+    [LibraryImport(LibName, EntryPoint = "sim_get_player_pos")]
+    public static partial Vector3D<float> Sim_GetPlayerPos(IntPtr simHandle);
 
 
 

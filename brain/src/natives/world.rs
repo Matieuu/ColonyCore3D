@@ -1,21 +1,21 @@
 use crate::world::World;
 
 #[unsafe(no_mangle)]
-pub extern "C" fn world_get_width(world: *const World) -> u32 {
+pub extern "C" fn world_get_width(world: *const World) -> u64 {
     let world = unsafe { &*world };
-    world.width
+    world.size.x
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn world_get_height(world: *const World) -> u32 {
+pub extern "C" fn world_get_height(world: *const World) -> u64 {
     let world = unsafe { &*world };
-    world.height
+    world.size.y
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn world_get_depth(world: *const World) -> u32 {
+pub extern "C" fn world_get_depth(world: *const World) -> u64 {
     let world = unsafe { &*world };
-    world.depth
+    world.size.z
 }
 
 #[unsafe(no_mangle)]

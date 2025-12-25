@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
 using Silk.NET.Maths;
 
+namespace ColonyCore;
+
 [StructLayout(LayoutKind.Sequential)]
 public struct Ray {
 
@@ -26,8 +28,8 @@ public struct Ray {
 [StructLayout(LayoutKind.Sequential)]
 public struct RaycastResult {
     public byte Hit;
-    public int X;
-    public int Y;
-    public int Z;
+    public long X;
+    public long Y;
+    public long Z;
     public byte Face;
 }

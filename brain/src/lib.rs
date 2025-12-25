@@ -14,8 +14,10 @@
 #![cfg_attr(not(debug_assertions), deny(debug_assertions))]
 
 pub mod constants;
+pub mod entities;
 pub mod machines;
 pub mod natives;
+pub mod objects;
 pub mod render;
 pub mod utils;
 pub mod world;

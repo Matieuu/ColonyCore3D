@@ -1,50 +1,45 @@
+use glam::{I64Vec3, U64Vec3, Vec3};
+
 use crate::{
     render::axis_state::{AxisState, Side},
-    world::World,
+    world::{World, calc_index},
 };
 
 #[repr(C)]
 pub struct Ray {
-    pub origin_x: f32,
-    pub origin_y: f32,
-    pub origin_z: f32,
-    pub direction_x: f32,
-    pub direction_y: f32,
-    pub direction_z: f32,
+    // pub origin_x: f32,
+    // pub origin_y: f32,
+    // pub origin_z: f32,
+    // pub direction_x: f32,
+    // pub direction_y: f32,
+    // pub direction_z: f32,
+    pub origin: Vec3,
+    pub direction: Vec3,
 }
 
 #[repr(C)]
 pub struct RaycastResult {
     pub hit: u8,
-    pub x: i32,
-    pub y: i32,
-    pub z: i32,
+    // pub x: i32,
+    // pub y: i32,
+    // pub z: i32,
+    pub position: I64Vec3,
     pub face: u8,
 }
 
 impl Ray {
-    pub fn calc_ray(&self, world: &World) -> RaycastResult {
-        if !self.direction_x.is_finite()
-            || !self.direction_y.is_finite()
-            || !self.direction_z.is_finite()
-            || !self.origin_x.is_finite()
-            || !self.origin_y.is_finite()
-            || !self.origin_z.is_finite()
-        {
+    pub fn calc_ray(&self, map: &[u16], size: &U64Vec3, max_dist: f32) -> RaycastResult {
+        if !self.direction.is_finite() || !self.origin.is_finite() {
             return RaycastResult {
                 hit: 0,
-                x: 0,
-                y: 0,
-                z: 0,
+                position: I64Vec3::ZERO,
                 face: 0,
             };
         }
 
-        let mut ax = AxisState::new(self.origin_x, self.direction_x);
-        let mut ay = AxisState::new(self.origin_y, self.direction_y);
-        let mut az = AxisState::new(self.origin_z, self.direction_z);
-
-        let max_dist = 100.0;
+        let mut ax = AxisState::new(self.origin.x, self.direction.x);
+        let mut ay = AxisState::new(self.origin.y, self.direction.y);
+        let mut az = AxisState::new(self.origin.z, self.direction.z);
         let mut last_face = Side::NORTH;
 
         while ax.side_dist.min(ay.side_dist).min(az.side_dist) < max_dist {
@@ -67,17 +62,15 @@ impl Ray {
                 break;
             }
 
-            let x = ax.map_pos as u32;
-            let y = ay.map_pos as u32;
-            let z = az.map_pos as u32;
+            let x = ax.map_pos as u64;
+            let y = ay.map_pos as u64;
+            let z = az.map_pos as u64;
 
-            if let Some(idx) = world.calc_index(x, y, z) {
-                if world.map[idx] != 0 {
+            if let Some(idx) = calc_index(&size, (x, y, z).into()) {
+                if map[idx] != 0 {
                     return RaycastResult {
                         hit: 1,
-                        x: ax.map_pos,
-                        y: ay.map_pos,
-                        z: az.map_pos,
+                        position: (ax.map_pos, ay.map_pos, az.map_pos).into(),
                         face: last_face as u8,
                     };
                 }
@@ -88,9 +81,7 @@ impl Ray {
 
         RaycastResult {
             hit: 0,
-            x: 0,
-            y: 0,
-            z: 0,
+            position: I64Vec3::ZERO,
             face: 0,
         }
     }

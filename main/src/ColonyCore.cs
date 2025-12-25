@@ -65,13 +65,17 @@ class ColonyCore {
     }
 
     private void OnUpdate(double deltaTime) {
-        NativeLib.Sim_Tick(_simHandle);
+        Vector2D<float> input = Vector2D<float>.Zero;
 
         float keySpeed = 150f * (float)deltaTime;
-        if (_keyboard.IsKeyPressed(Key.W)) _camera.Pan(0, -keySpeed);
-        if (_keyboard.IsKeyPressed(Key.S)) _camera.Pan(0, keySpeed);
-        if (_keyboard.IsKeyPressed(Key.A)) _camera.Pan(-keySpeed, 0);
-        if (_keyboard.IsKeyPressed(Key.D)) _camera.Pan(keySpeed, 0);
+        if (_keyboard.IsKeyPressed(Key.W)) input.Y += 1;
+        if (_keyboard.IsKeyPressed(Key.S)) input.Y -= 1;
+        if (_keyboard.IsKeyPressed(Key.A)) input.X += 1;
+        if (_keyboard.IsKeyPressed(Key.D)) input.X -= 1;
+
+        bool jump = _keyboard.IsKeyPressed(Key.Space);
+        NativeLib.Sim_Tick(_simHandle, (float)deltaTime, input, jump ? (byte)1 : (byte)0);
+        _camera.Target = NativeLib.Sim_GetPlayerPos(_simHandle);
 
         float rotSpeed = 90f * (float)deltaTime;
         if (_keyboard.IsKeyPressed(Key.Q)) _camera.Rotate(rotSpeed, 0);
@@ -89,6 +93,10 @@ class ColonyCore {
         _shader.SetUniform("uProjection", _camera.ProjectionMatrix);
 
         _world.Render();
+
+        Vector3D<float> playerPos = _camera.Target;
+        Vector3D<int> playerBlockPos = new((int)playerPos.X, (int)playerPos.Y, (int)playerPos.Z);
+        _selectionRenderer.Render(_camera, playerBlockPos);
 
         if (_blockSelected != Vector3D<int>.Zero) {
             _selectionRenderer.Render(_camera, _blockSelected);
@@ -120,10 +128,10 @@ class ColonyCore {
                 new(mouse.Position.X, mouse.Position.Y),
                 new(_window.Size.X, _window.Size.Y)
             );
-            var raycastResult = NativeLib.Sim_Raycast(_simHandle, ray);
+            var raycastResult = NativeLib.Sim_Raycast(_simHandle, ray, 255f);
 
             if (raycastResult.Hit == 1) {
-                _blockSelected = new(raycastResult.X, raycastResult.Y, raycastResult.Z);
+                _blockSelected = new((int)raycastResult.X, (int)raycastResult.Y, (int)raycastResult.Z);
             } else {
                 _blockSelected = Vector3D<int>.Zero;
             }

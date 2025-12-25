@@ -1,26 +1,25 @@
 use std::{collections::HashMap, u32};
 
-use crate::render::block_entity::BlockEntity;
+use glam::U64Vec3;
+
+use crate::{entities::player::Player, render::block_entity::BlockEntity};
 
 pub struct World {
-    pub width: u32,
-    pub height: u32,
-    pub depth: u32,
-
+    pub size: U64Vec3,
     pub map: Vec<u16>,
+
+    pub player: Player,
     pub entities: HashMap<usize, Box<dyn BlockEntity>>,
 }
 
-impl World {
-    pub fn calc_index(&self, x: u32, y: u32, z: u32) -> Option<usize> {
-        if x >= self.width || y >= self.height || z >= self.depth {
-            return None;
-        }
-
-        let idx: usize = x as usize
-            + y as usize * self.width as usize
-            + z as usize * self.width as usize * self.height as usize;
-
-        Some(idx)
+pub fn calc_index(size: &U64Vec3, position: U64Vec3) -> Option<usize> {
+    if position.x >= size.x || position.y >= size.y || position.z >= size.z {
+        return None;
     }
+
+    let idx: usize = position.x as usize
+        + position.y as usize * size.x as usize
+        + position.z as usize * size.x as usize * size.y as usize;
+
+    Some(idx)
 }

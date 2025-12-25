@@ -5,7 +5,7 @@ namespace ColonyCore;
 public class Camera {
 
     public Vector3D<float> Position { get; private set; }
-    public Vector3D<float> Target { get; private set; }
+    public Vector3D<float> Target { get; set; }
 
     public Matrix4X4<float> ViewMatrix { get; private set; }
     public Matrix4X4<float> ProjectionMatrix { get; private set; }
