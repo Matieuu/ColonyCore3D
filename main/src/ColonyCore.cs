@@ -67,19 +67,21 @@ class ColonyCore {
     private void OnUpdate(double deltaTime) {
         Vector2D<float> input = Vector2D<float>.Zero;
 
-        float keySpeed = 150f * (float)deltaTime;
-        if (_keyboard.IsKeyPressed(Key.W)) input.Y += 1;
-        if (_keyboard.IsKeyPressed(Key.S)) input.Y -= 1;
-        if (_keyboard.IsKeyPressed(Key.A)) input.X += 1;
-        if (_keyboard.IsKeyPressed(Key.D)) input.X -= 1;
+        var (forward, right) = _camera.GetFlatDirectionVectors();
+        if (_keyboard.IsKeyPressed(Key.W)) input += forward;
+        if (_keyboard.IsKeyPressed(Key.S)) input -= forward;
+        if (_keyboard.IsKeyPressed(Key.A)) input -= right;
+        if (_keyboard.IsKeyPressed(Key.D)) input += right;
 
         bool jump = _keyboard.IsKeyPressed(Key.Space);
-        NativeLib.Sim_Tick(_simHandle, (float)deltaTime, input, jump ? (byte)1 : (byte)0);
-        _camera.Target = NativeLib.Sim_GetPlayerPos(_simHandle);
+        NativeLib.Sim_Tick(_simHandle, (float)deltaTime, Vector2D.Normalize(input), jump ? (byte)1 : (byte)0);
+        _camera.UpdateMatrices(NativeLib.Sim_GetPlayerPos(_simHandle));
 
         float rotSpeed = 90f * (float)deltaTime;
         if (_keyboard.IsKeyPressed(Key.Q)) _camera.Rotate(rotSpeed, 0);
         if (_keyboard.IsKeyPressed(Key.E)) _camera.Rotate(-rotSpeed, 0);
+
+        if (_keyboard.IsKeyPressed(Key.Escape)) _window.Close();
 
         _controller.Update((float)deltaTime);
     }
@@ -94,12 +96,11 @@ class ColonyCore {
 
         _world.Render();
 
-        Vector3D<float> playerPos = _camera.Target;
-        Vector3D<int> playerBlockPos = new((int)playerPos.X, (int)playerPos.Y, (int)playerPos.Z);
-        _selectionRenderer.Render(_camera, playerBlockPos);
+        Vector3D<float> playerPos = NativeLib.Sim_GetPlayerPos(_simHandle);
+        _selectionRenderer.Render(_camera, playerPos);
 
         if (_blockSelected != Vector3D<int>.Zero) {
-            _selectionRenderer.Render(_camera, _blockSelected);
+            _selectionRenderer.Render(_camera, (Vector3D<float>)_blockSelected);
             ImGui.Begin("Selected block");
             ImGui.Text($"X: {_blockSelected.X}; Y: {_blockSelected.Y}; Z: {_blockSelected.Z}");
             ImGui.End();
@@ -126,9 +127,10 @@ class ColonyCore {
         if (button == MouseButton.Left) {
             var ray = _camera.GetRayFromMouse(
                 new(mouse.Position.X, mouse.Position.Y),
-                new(_window.Size.X, _window.Size.Y)
+                new(_window.Size.X, _window.Size.Y),
+                NativeLib.Sim_GetPlayerPos(_simHandle)
             );
-            var raycastResult = NativeLib.Sim_Raycast(_simHandle, ray, 255f);
+            var raycastResult = NativeLib.Sim_Raycast(_simHandle, ray, 256f);
 
             if (raycastResult.Hit == 1) {
                 _blockSelected = new((int)raycastResult.X, (int)raycastResult.Y, (int)raycastResult.Z);
@@ -142,9 +144,9 @@ class ColonyCore {
         Vector2D<float> mousePos = new(pos.X, pos.Y);
         var delta = _lastMousePos - mousePos;
 
-        if (mouse.IsButtonPressed(MouseButton.Right)) {
-            _camera.Pan(delta.X, delta.Y);
-        }
+        // if (mouse.IsButtonPressed(MouseButton.Right)) {
+        //     _camera.Pan(delta.X, delta.Y);
+        // }
 
         if (mouse.IsButtonPressed(MouseButton.Middle)) {
             _camera.Rotate(delta.X, delta.Y);

@@ -8,7 +8,7 @@ pub const PROP_IS_ACTIVE: u16 = 100;
 pub const PROP_ITEM_COUNT: u16 = 101;
 
 //* gameplay constants
-pub const WALKING_SPEED: f32 = 15.;
-pub const WALKING_ACCELERATION: f32 = 1.;
-pub const JUMPING_ACCELERATION: f32 = 8.;
-pub const GRAVITY: f32 = 10.;
+pub const WALKING_SPEED: f32 = 32.;
+pub const WALKING_ACCELERATION: f32 = 24.;
+pub const JUMPING_ACCELERATION: f32 = 6.;
+pub const GRAVITY: f32 = 16.;

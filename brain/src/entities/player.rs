@@ -28,13 +28,28 @@ impl Player {
             WALKING_ACCELERATION * 0.25
         };
 
-        let mut input_dir: Vec3 = input_dir.with_y(0.);
+        if self.on_ground {
+            let ground_friction = 0.05f32.powf(dt);
+            self.velocity.x *= ground_friction;
+            self.velocity.z *= ground_friction;
+        } else {
+            let air_drag = 0.9f32.powf(dt);
+            self.velocity.x *= air_drag;
+            self.velocity.z *= air_drag;
+        }
 
+        let mut input_dir: Vec3 = input_dir.with_y(0.);
         if input_dir.length_squared() > 0. {
             self.velocity += input_dir * accel_mod * dt;
-        } else {
-            let damping: Vec3 = (0.9, 1., 0.9).into();
-            self.velocity *= damping;
+        }
+
+        let horizontal_vel = self.velocity.with_y(0.);
+        let speed = horizontal_vel.length();
+
+        if speed > WALKING_SPEED {
+            let scale = WALKING_SPEED / speed;
+            self.velocity.x *= scale;
+            self.velocity.z *= scale;
         }
 
         if jump && self.on_ground {
@@ -46,11 +61,11 @@ impl Player {
             self.velocity.y -= GRAVITY * dt;
         }
 
-        let mut next_position = self.position + self.velocity * dt;
         let ray = Ray {
-            origin: next_position,
+            origin: self.position,
             direction: (0., -1., 0.).into(),
         };
+        let mut next_position = self.position + self.velocity * dt;
         let hit = ray.calc_ray(map, size, 100.);
 
         if hit.hit == 1 {
